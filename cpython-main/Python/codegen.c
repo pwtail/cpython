@@ -1365,6 +1365,13 @@ codegen_type_params(compiler *c, asdl_type_param_seq *type_params)
     return SUCCESS;
 }
 
+/* funnypy: '...' is a no-op placeholder, not a value to return. */
+static bool
+is_ellipsis_placeholder(expr_ty e)
+{
+    return e->kind == Constant_kind && e->v.Constant.value == Py_Ellipsis;
+}
+
 static int
 codegen_function_body(compiler *c, stmt_ty s, int is_async, Py_ssize_t funcflags,
                       int firstlineno)
@@ -1416,6 +1423,13 @@ codegen_function_body(compiler *c, stmt_ty s, int is_async, Py_ssize_t funcflags
         RETURN_IF_ERROR_IN_SCOPE(c, idx < 0 ? ERROR : SUCCESS);
     }
 
+    /* funnypy: __init__ must return None and a truthy __exit__ suppresses the
+       exception, so the implicit trailing-expression return does not apply to
+       them; an explicit `return` still works. */
+    bool allow_implicit_return =
+        !_PyUnicode_EqualToASCIIString(name, "__init__") &&
+        !_PyUnicode_EqualToASCIIString(name, "__exit__");
+
     NEW_JUMP_TARGET_LABEL(c, start);
     USE_LABEL(c, start);
     bool add_stopiteration_handler = ste->ste_coroutine || ste->ste_generator;
@@ -1432,6 +1446,8 @@ codegen_function_body(compiler *c, stmt_ty s, int is_async, Py_ssize_t funcflags
            the value of a trailing expression statement is returned. */
         if (i == asdl_seq_LEN(body) - 1
                 && st->kind == Expr_kind
+                && !is_ellipsis_placeholder(st->v.Expr.value)
+                && allow_implicit_return
                 && scope_type == COMPILE_SCOPE_FUNCTION
                 && !ste->ste_generator && !ste->ste_coroutine) {
             VISIT_IN_SCOPE(c, expr, st->v.Expr.value);
@@ -6674,7 +6690,7 @@ codegen_match_expr_body(compiler *c, asdl_stmt_seq *body)
         VISIT(c, stmt, (stmt_ty)asdl_seq_GET(body, i));
     }
     stmt_ty last = (stmt_ty)asdl_seq_GET(body, n - 1);
-    if (last->kind == Expr_kind) {
+    if (last->kind == Expr_kind && !is_ellipsis_placeholder(last->v.Expr.value)) {
         VISIT(c, expr, last->v.Expr.value);
     }
     else {
