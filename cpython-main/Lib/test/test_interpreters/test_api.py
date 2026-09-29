@@ -916,6 +916,8 @@ class TestInterpreterExec(TestBase):
 
             def eggs():
                 ham()
+                # funnypy: keep the return value None for script checks.
+                pass
             """)
         scriptfile = self.make_script('script.py', tempdir, text="""
             from concurrent import interpreters
@@ -923,6 +925,8 @@ class TestInterpreterExec(TestBase):
             def script():
                 import spam
                 spam.eggs()
+                # funnypy: keep the return value None for script checks.
+                pass
 
             interp = interpreters.create()
             try:
@@ -937,7 +941,7 @@ class TestInterpreterExec(TestBase):
         #      File "{interpreters.__file__}", line 179, in exec
         self.assertEqual(stderr, dedent(f"""\
             Traceback (most recent call last):
-              File "{scriptfile}", line 10, in <module>
+              File "{scriptfile}", line 12, in <module>
                 interp.exec(script)
                 ~~~~~~~~~~~^^^^^^^^
               {interpmod_line.strip()}

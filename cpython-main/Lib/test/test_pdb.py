@@ -490,6 +490,7 @@ def test_pdb_breakpoint_with_filename():
     ...     import pdb; pdb.Pdb(nosigint=True, readrc=False).set_trace()
     ...     mod2.func88()
     ...     mod2.func114()
+    ...     pass  # funnypy: keep the return value None
 
     >>> with PdbTestInput([  # doctest: +NORMALIZE_WHITESPACE +ELLIPSIS
     ...     'break test.test_inspect.inspect_fodder2:90',
@@ -1189,6 +1190,7 @@ def test_convenience_variables():
 
     >>> def test_function():
     ...     util_function()
+    ...     pass  # funnypy: keep the return value None
 
     >>> with PdbTestInput([  # doctest: +ELLIPSIS, +NORMALIZE_WHITESPACE
     ...     'step',             # Step to try statement
@@ -1813,9 +1815,10 @@ def test_pdb_skip_modules():
     -> string.capwords('FOO')
     (Pdb) step
     --Return--
-    > <doctest test.test_pdb.test_pdb_skip_modules[0]>(4)skip_module()->None
+    > <doctest test.test_pdb.test_pdb_skip_modules[0]>(4)skip_module()->'Foo'
     -> string.capwords('FOO')
     (Pdb) continue
+    'Foo'
     """
 
 def test_pdb_invalid_arg():
@@ -1988,7 +1991,7 @@ def test_pdb_run_with_code_object():
 
     >>> with PdbTestInput(['x', 'continue']):
     ...     x=0
-    ...     pdb_invoke('runeval', compile('x+1', '<string>', 'eval'))
+    ...     _ = pdb_invoke('runeval', compile('x+1', '<string>', 'eval'))
     > <string>(1)<module>()->None
     (Pdb) x
     1
@@ -3444,6 +3447,7 @@ def test_pdb_issue_gh_65052():
 
     >>> def test_function():
     ...     A()
+    ...     pass  # funnypy: keep the return value None
     >>> with PdbTestInput([  # doctest: +ELLIPSIS +NORMALIZE_WHITESPACE
     ...     's',
     ...     's',

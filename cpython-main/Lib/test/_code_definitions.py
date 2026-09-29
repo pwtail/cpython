@@ -46,6 +46,8 @@ def spam_with_builtins():
     checks = tuple(callable(v) for v in values)
     res = callable(values), tuple(values), list(values), checks
     print(res)
+    # funnypy: keep the return value None for script checks.
+    pass
 
 
 def spam_with_globals_and_builtins():
@@ -55,6 +57,8 @@ def spam_with_globals_and_builtins():
     checks = tuple(callable(f) for f in funcs)
     res = callable(funcs), tuple(funcs), list(funcs), checks
     print(res)
+    # funnypy: keep the return value None for script checks.
+    pass
 
 
 def spam_with_global_and_attr_same_name():
@@ -91,6 +95,8 @@ def spam_with_inner_not_closure():
     def eggs():
         pass
     eggs()
+    # funnypy: keep the return value None for script checks.
+    pass
 
 
 def spam_with_inner_closure():
@@ -98,6 +104,8 @@ def spam_with_inner_closure():
     def eggs():
         print(x)
     eggs()
+    # funnypy: keep the return value None for script checks.
+    pass
 
 
 def spam_annotated(a: int, b: str, c: object) -> tuple:

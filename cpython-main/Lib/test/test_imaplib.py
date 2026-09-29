@@ -318,7 +318,9 @@ class SimpleIMAPHandler(socketserver.StreamRequestHandler):
 
             if hasattr(self, 'cmd_' + cmd):
                 continuation = getattr(self, 'cmd_' + cmd)(tag, args)
-                if continuation:
+                # funnypy: a handler may implicitly return the value of its
+                # last call, so only generators are continuations.
+                if continuation and hasattr(continuation, 'send'):
                     self.continuation = continuation
                     next(continuation)
             else:

@@ -948,6 +948,8 @@ def gc_collect():
     gc.collect()
     gc.collect()
     gc.collect()
+    # funnypy: keep this helper's documented "returns None" contract.
+    return None
 
 @contextlib.contextmanager
 def disable_gc():

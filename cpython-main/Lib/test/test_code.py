@@ -68,7 +68,7 @@ cellvars: ()
 freevars: ()
 nlocals: 1
 flags: 3
-consts: ('None',)
+consts: ()
 
 >>> def optimize_away():
 ...     'doc string'

@@ -266,6 +266,8 @@ class ProfileHookTestCase(TestCaseBase):
                 yield i
         def g(p):
             next(f())
+            # funnypy: keep g's return value None for the profile events.
+            pass
 
         f_ident = ident(f)
         g_ident = ident(g)

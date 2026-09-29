@@ -281,8 +281,6 @@ dis_kw_names = """\
               LOAD_SMALL_INT           5
               LOAD_CONST               1 (('c',))
               CALL_KW                  3
-              POP_TOP
-              LOAD_COMMON_CONSTANT     7 (None)
               RETURN_VALUE
 """ % (wrap_func_w_kwargs.__code__.co_firstlineno,
        wrap_func_w_kwargs.__code__.co_firstlineno + 1)
@@ -321,8 +319,6 @@ _BIG_LINENO_FORMAT = """\
   1           RESUME                   0
 
 %3d           LOAD_GLOBAL              0 (spam)
-              POP_TOP
-              LOAD_COMMON_CONSTANT     7 (None)
               RETURN_VALUE
 """
 
@@ -330,8 +326,6 @@ _BIG_LINENO_FORMAT2 = """\
    1           RESUME                   0
 
 %4d           LOAD_GLOBAL              0 (spam)
-               POP_TOP
-               LOAD_COMMON_CONSTANT     7 (None)
                RETURN_VALUE
 """
 
@@ -1565,8 +1559,6 @@ Kw-only arguments: 0
 Number of locals:  1
 Stack size:        \\d+
 Flags:             OPTIMIZED, NEWLOCALS, NESTED
-Constants:
-   0: None
 Names:
    0: print
 Variable names:
@@ -1847,9 +1839,7 @@ expected_opinfo_inner = [
   make_inst(opname='LOAD_DEREF', arg=5, argval='d', argrepr='d', offset=22, start_offset=22, starts_line=False, line_number=4),
   make_inst(opname='LOAD_FAST_BORROW_LOAD_FAST_BORROW', arg=1, argval=('e', 'f'), argrepr='e, f', offset=24, start_offset=24, starts_line=False, line_number=4),
   make_inst(opname='CALL', arg=6, argval=6, argrepr='', offset=26, start_offset=26, starts_line=False, line_number=4, cache_info=[('counter', 1, b'\x00\x00'), ('func_version', 2, b'\x00\x00\x00\x00')]),
-  make_inst(opname='POP_TOP', arg=None, argval=None, argrepr='', offset=34, start_offset=34, starts_line=False, line_number=4),
-  make_inst(opname='LOAD_COMMON_CONSTANT', arg=7, argval=None, argrepr='None', offset=36, start_offset=36, starts_line=False, line_number=4),
-  make_inst(opname='RETURN_VALUE', arg=None, argval=None, argrepr='', offset=38, start_offset=38, starts_line=False, line_number=4),
+  make_inst(opname='RETURN_VALUE', arg=None, argval=None, argrepr='', offset=34, start_offset=34, starts_line=False, line_number=4),
 ]
 
 expected_opinfo_jumpy = [
