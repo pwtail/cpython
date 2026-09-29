@@ -158,6 +158,8 @@ class _incompatible_extension_module_restrictions:
         old = self.old
         del self.old
         _imp._override_multi_interp_extensions_check(old)
+        # funnypy: __exit__ must not suppress exceptions implicitly.
+        return None
 
     @property
     def override(self):

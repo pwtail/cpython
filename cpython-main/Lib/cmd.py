@@ -244,6 +244,8 @@ class Cmd:
 
         """
         self.stdout.write('*** Unknown syntax: %s\n'%line)
+        # funnypy: document the "returns None" contract explicitly.
+        return None
 
     def completedefault(self, *ignored):
         """Method called to complete an input line when no command-specific

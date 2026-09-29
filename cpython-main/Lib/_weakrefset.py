@@ -83,6 +83,8 @@ class WeakSet:
 
     def difference_update(self, other):
         self.__isub__(other)
+        # funnypy: keep the documented "returns None" contract.
+        return None
     def __isub__(self, other):
         if self is other:
             self.data.clear()
@@ -96,6 +98,8 @@ class WeakSet:
 
     def intersection_update(self, other):
         self.__iand__(other)
+        # funnypy: keep the documented "returns None" contract.
+        return None
     def __iand__(self, other):
         self.data.intersection_update(ref(item) for item in other)
         return self
@@ -127,6 +131,8 @@ class WeakSet:
 
     def symmetric_difference_update(self, other):
         self.__ixor__(other)
+        # funnypy: keep the documented "returns None" contract.
+        return None
     def __ixor__(self, other):
         if self is other:
             self.data.clear()

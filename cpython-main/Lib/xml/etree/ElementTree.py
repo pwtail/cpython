@@ -1336,6 +1336,8 @@ class XMLPullParser:
         read_events() to consume elements from XMLPullParser.
         """
         self._close_and_return_root()
+        # funnypy: keep the documented "returns None" contract explicit.
+        return None
 
     def read_events(self):
         """Return an iterator over currently available (event, elem) pairs.

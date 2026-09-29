@@ -552,6 +552,9 @@ class _BaseExitStack:
     def _create_cb_wrapper(callback, /, *args, **kwds):
         def _exit_wrapper(exc_type, exc, tb):
             callback(*args, **kwds)
+            # funnypy: callbacks registered with callback() cannot suppress
+            # exceptions, so don't return the callback's value implicitly.
+            return None
         return _exit_wrapper
 
     def __init__(self):

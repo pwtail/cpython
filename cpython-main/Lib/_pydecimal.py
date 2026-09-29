@@ -375,6 +375,8 @@ def setcontext(context):
         context = context.copy()
         context.clear_flags()
     _current_context_var.set(context)
+    # funnypy: keep this function's "returns None" contract.
+    return None
 
 del contextvars        # Don't contaminate the namespace
 
