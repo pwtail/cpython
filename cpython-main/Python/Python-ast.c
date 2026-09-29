@@ -115,6 +115,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->MatMult_type);
     Py_CLEAR(state->MatchAs_type);
     Py_CLEAR(state->MatchClass_type);
+    Py_CLEAR(state->MatchExpr_type);
     Py_CLEAR(state->MatchMapping_type);
     Py_CLEAR(state->MatchOr_type);
     Py_CLEAR(state->MatchSequence_type);
@@ -574,6 +575,10 @@ static const char * const UnaryOp_fields[]={
 static const char * const Lambda_fields[]={
     "args",
     "body",
+};
+static const char * const MatchExpr_fields[]={
+    "subject",
+    "cases",
 };
 static const char * const IfExp_fields[]={
     "test",
@@ -2684,6 +2689,47 @@ add_ast_annotations(struct ast_state *state)
         return 0;
     }
     Py_DECREF(Lambda_annotations);
+    PyObject *MatchExpr_annotations = PyDict_New();
+    if (!MatchExpr_annotations) return 0;
+    {
+        PyObject *type = state->expr_type;
+        Py_INCREF(type);
+        cond = PyDict_SetItemString(MatchExpr_annotations, "subject", type) ==
+                                    0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(MatchExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->match_case_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(MatchExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(MatchExpr_annotations, "cases", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(MatchExpr_annotations);
+            return 0;
+        }
+    }
+    cond = PyObject_SetAttrString(state->MatchExpr_type, "_field_types",
+                                  MatchExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(MatchExpr_annotations);
+        return 0;
+    }
+    cond = PyObject_SetAttrString(state->MatchExpr_type, "__annotations__",
+                                  MatchExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(MatchExpr_annotations);
+        return 0;
+    }
+    Py_DECREF(MatchExpr_annotations);
     PyObject *IfExp_annotations = PyDict_New();
     if (!IfExp_annotations) return 0;
     {
@@ -6344,6 +6390,7 @@ init_types(void *arg)
         "     | BinOp(expr left, operator op, expr right)\n"
         "     | UnaryOp(unaryop op, expr operand)\n"
         "     | Lambda(arguments args, expr body)\n"
+        "     | MatchExpr(expr subject, match_case* cases)\n"
         "     | IfExp(expr test, expr body, expr orelse)\n"
         "     | Dict(expr?* keys, expr* values)\n"
         "     | Set(expr* elts)\n"
@@ -6397,6 +6444,10 @@ init_types(void *arg)
                                    Lambda_fields, 2,
         "Lambda(arguments args, expr body)");
     if (!state->Lambda_type) return -1;
+    state->MatchExpr_type = make_type(state, "MatchExpr", state->expr_type,
+                                      MatchExpr_fields, 2,
+        "MatchExpr(expr subject, match_case* cases)");
+    if (!state->MatchExpr_type) return -1;
     state->IfExp_type = make_type(state, "IfExp", state->expr_type,
                                   IfExp_fields, 3,
         "IfExp(expr test, expr body, expr orelse)");
@@ -7846,6 +7897,29 @@ _PyAST_Lambda(arguments_ty args, expr_ty body, int lineno, int col_offset, int
     p->kind = Lambda_kind;
     p->v.Lambda.args = args;
     p->v.Lambda.body = body;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_MatchExpr(expr_ty subject, asdl_match_case_seq * cases, int lineno, int
+                 col_offset, int end_lineno, int end_col_offset, PyArena *arena)
+{
+    expr_ty p;
+    if (!subject) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'subject' is required for MatchExpr");
+        return NULL;
+    }
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = MatchExpr_kind;
+    p->v.MatchExpr.subject = subject;
+    p->v.MatchExpr.cases = cases;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -9634,6 +9708,22 @@ ast2obj_expr(struct ast_state *state, void* _o)
         value = ast2obj_expr(state, o->v.Lambda.body);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case MatchExpr_kind:
+        tp = (PyTypeObject *)state->MatchExpr_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(state, o->v.MatchExpr.subject);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->subject, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.MatchExpr.cases,
+                             ast2obj_match_case);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->cases, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -14166,6 +14256,75 @@ obj2ast_expr(struct ast_state *state, PyObject* obj, expr_ty* out, PyArena*
         if (*out == NULL) goto failed;
         return 0;
     }
+    tp = state->MatchExpr_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return -1;
+    }
+    if (isinstance) {
+        expr_ty subject;
+        asdl_match_case_seq* cases;
+
+        if (PyObject_GetOptionalAttr(obj, state->subject, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"subject\" missing from MatchExpr");
+            return -1;
+        }
+        else {
+            int res;
+            if (_Py_EnterRecursiveCall(" while traversing 'MatchExpr' node")) {
+                goto failed;
+            }
+            res = obj2ast_expr(state, tmp, &subject, arena);
+            _Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->cases, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "MatchExpr field \"cases\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            cases = _Py_asdl_match_case_seq_new(len, arena);
+            if (cases == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                match_case_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'MatchExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_match_case(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "MatchExpr field \"cases\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(cases, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_MatchExpr(subject, cases, lineno, col_offset, end_lineno,
+                                end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
     tp = state->IfExp_type;
     isinstance = PyObject_IsInstance(obj, tp);
     if (isinstance == -1) {
@@ -18156,6 +18315,9 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "Lambda", state->Lambda_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "MatchExpr", state->MatchExpr_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "IfExp", state->IfExp_type) < 0) {

@@ -200,6 +200,7 @@ static int codegen_nameop(compiler *, location, identifier, expr_context_ty);
 static int codegen_visit_stmt(compiler *, stmt_ty);
 static int codegen_visit_keyword(compiler *, keyword_ty);
 static int codegen_visit_expr(compiler *, expr_ty);
+static int codegen_match_expr(compiler *, expr_ty);
 static int codegen_augassign(compiler *, stmt_ty);
 static int codegen_annassign(compiler *, stmt_ty);
 static int codegen_subscript(compiler *, expr_ty);
@@ -5419,6 +5420,8 @@ codegen_visit_expr(compiler *c, expr_ty e)
         break;
     case Lambda_kind:
         return codegen_lambda(c, e);
+    case MatchExpr_kind:
+        return codegen_match_expr(c, e);
     case IfExp_kind:
         return codegen_ifexp(c, e);
     case Dict_kind:
@@ -6658,6 +6661,120 @@ codegen_match(compiler *c, stmt_ty s)
     int result = codegen_match_inner(c, s, &pc);
     PyMem_Free(pc.fail_pop);
     return result;
+}
+
+/* funnypy: compile the body of a match-expr case, leaving the value of the
+   trailing expression (or None) on the stack. */
+static int
+codegen_match_expr_body(compiler *c, asdl_stmt_seq *body)
+{
+    Py_ssize_t n = asdl_seq_LEN(body);
+    assert(n > 0);
+    for (Py_ssize_t i = 0; i < n - 1; i++) {
+        VISIT(c, stmt, (stmt_ty)asdl_seq_GET(body, i));
+    }
+    stmt_ty last = (stmt_ty)asdl_seq_GET(body, n - 1);
+    if (last->kind == Expr_kind) {
+        VISIT(c, expr, last->v.Expr.value);
+    }
+    else {
+        VISIT(c, stmt, last);
+        ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+    }
+    return SUCCESS;
+}
+
+/* funnypy: a match expression evaluates to the value of the matching case's
+   trailing expression, or None when no case matches. */
+static int
+codegen_match_expr(compiler *c, expr_ty e)
+{
+    pattern_context pc;
+    pc.fail_pop = NULL;
+
+    VISIT(c, expr, e->v.MatchExpr.subject);
+    NEW_JUMP_TARGET_LABEL(c, end);
+    NEW_JUMP_TARGET_LABEL(c, no_match);
+    Py_ssize_t cases = asdl_seq_LEN(e->v.MatchExpr.cases);
+    assert(cases > 0);
+    match_case_ty m = asdl_seq_GET(e->v.MatchExpr.cases, cases - 1);
+    int has_default = WILDCARD_CHECK(m->pattern) && 1 < cases;
+    for (Py_ssize_t i = 0; i < cases - has_default; i++) {
+        m = asdl_seq_GET(e->v.MatchExpr.cases, i);
+        // Only copy the subject if we're *not* on the last case:
+        if (i != cases - has_default - 1) {
+            ADDOP_I(c, LOC(m->pattern), COPY, 1);
+        }
+        pc.stores = PyList_New(0);
+        if (pc.stores == NULL) {
+            PyMem_Free(pc.fail_pop);
+            return ERROR;
+        }
+        // Irrefutable cases must be either guarded, last, or both:
+        pc.allow_irrefutable = m->guard != NULL || i == cases - 1;
+        pc.fail_pop = NULL;
+        pc.fail_pop_size = 0;
+        pc.on_top = 0;
+        // NOTE: Can't use returning macros here (they'll leak pc->stores)!
+        if (codegen_pattern(c, m->pattern, &pc) < 0) {
+            Py_DECREF(pc.stores);
+            PyMem_Free(pc.fail_pop);
+            return ERROR;
+        }
+        assert(!pc.on_top);
+        // It's a match! Store all of the captured names (they're on the stack).
+        Py_ssize_t nstores = PyList_GET_SIZE(pc.stores);
+        for (Py_ssize_t n = 0; n < nstores; n++) {
+            PyObject *name = PyList_GET_ITEM(pc.stores, n);
+            if (codegen_nameop(c, LOC(m->pattern), name, Store) < 0) {
+                Py_DECREF(pc.stores);
+                PyMem_Free(pc.fail_pop);
+                return ERROR;
+            }
+        }
+        Py_DECREF(pc.stores);
+        // NOTE: Returning macros are safe again.
+        if (m->guard) {
+            RETURN_IF_ERROR(ensure_fail_pop(c, &pc, 0));
+            RETURN_IF_ERROR(codegen_jump_if(c, LOC(m->pattern), m->guard, pc.fail_pop[0], 0));
+        }
+        // Success! Pop the subject copy off, we're done with it:
+        if (i != cases - has_default - 1) {
+            /* Use the next location to give better locations for branch events */
+            ADDOP(c, NEXT_LOCATION, POP_TOP);
+        }
+        RETURN_IF_ERROR(codegen_match_expr_body(c, m->body));
+        ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
+        // If the pattern fails to match, we want the line number of the
+        // cleanup to be associated with the failed pattern, not the last line
+        // of the body
+        RETURN_IF_ERROR(emit_and_reset_fail_pop(c, LOC(m->pattern), &pc));
+    }
+    if (has_default) {
+        // A trailing "case _" is common, and lets us save a bit of redundant
+        // pushing and popping in the loop above:
+        m = asdl_seq_GET(e->v.MatchExpr.cases, cases - 1);
+        if (cases == 1) {
+            // No matches. Done with the subject:
+            ADDOP(c, LOC(m->pattern), POP_TOP);
+        }
+        else {
+            // Show line coverage for default case (it doesn't create bytecode)
+            ADDOP(c, LOC(m->pattern), NOP);
+        }
+        if (m->guard) {
+            // The default case's guard failed: no case matched.
+            RETURN_IF_ERROR(codegen_jump_if(c, LOC(m->pattern), m->guard, no_match, 0));
+        }
+        RETURN_IF_ERROR(codegen_match_expr_body(c, m->body));
+        ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
+    }
+    // No case matched: the value of the expression is None.
+    USE_LABEL(c, no_match);
+    ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+    USE_LABEL(c, end);
+    PyMem_Free(pc.fail_pop);
+    return SUCCESS;
 }
 
 #undef WILDCARD_CHECK

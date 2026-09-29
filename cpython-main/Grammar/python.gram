@@ -106,6 +106,8 @@ statement[asdl_stmt_seq*]:
     | a[asdl_stmt_seq*]=funnypy_lambda_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=funnypy_pipe_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=simple_stmts { a }
+    | a=match_expr_stmt { _PyPegen_register_stmts(p,
+                           (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
 
 single_compound_stmt[asdl_stmt_seq*]:
     | a=compound_stmt {
@@ -232,6 +234,13 @@ assignment[stmt_ty]:
 match_assign[stmt_ty]:
     | "match" pat=patterns '=' v=annotated_rhs {
         _PyPegen_funnypy_match_assign(p, pat, v) }
+
+# funnypy: an assignment whose right-hand side is a match expression. It needs
+# its own statement-level rule because a trailing DEDENT does not produce the
+# NEWLINE that simple_stmts requires.
+match_expr_stmt[stmt_ty]:
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ b=match_expr {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
 
 annotated_rhs[expr_ty]: yield_expr | star_expressions
 
@@ -569,6 +578,11 @@ case_block[match_case_ty]:
 
 guard[expr_ty]: 'if' guard=named_expression { guard }
 
+# funnypy: match as an expression, e.g. s = match x:\n case 2: "hello"
+match_expr[expr_ty]:
+    | "match" subject=subject_expr ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyAST_MatchExpr(subject, cases, EXTRA) }
+
 patterns[pattern_ty]:
     | patterns[asdl_pattern_seq*]=open_sequence_pattern {
         _PyAST_MatchSequence(patterns, EXTRA) }
@@ -786,6 +800,7 @@ expression[expr_ty] (memo):
     | invalid_expression
     | invalid_legacy_expression
     | def_expr
+    | match_expr
     | if_expression
     | disjunction
     | lambdef

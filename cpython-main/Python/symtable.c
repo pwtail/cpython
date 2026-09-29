@@ -2518,6 +2518,13 @@ symtable_visit_expr(struct symtable *st, expr_ty e)
             return 0;
         break;
     }
+    case MatchExpr_kind: {
+        VISIT(st, expr, e->v.MatchExpr.subject);
+        ENTER_CONDITIONAL_BLOCK(st);
+        VISIT_SEQ(st, match_case, e->v.MatchExpr.cases);
+        LEAVE_CONDITIONAL_BLOCK(st);
+        break;
+    }
     case IfExp_kind:
         VISIT(st, expr, e->v.IfExp.test);
         VISIT(st, expr, e->v.IfExp.body);

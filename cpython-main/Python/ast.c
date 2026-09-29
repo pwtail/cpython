@@ -275,6 +275,24 @@ validate_expr(expr_ty exp, expr_context_ty ctx)
         ret = validate_arguments(exp->v.Lambda.args) &&
             validate_expr(exp->v.Lambda.body, Load);
         break;
+    case MatchExpr_kind: {
+        if (!validate_expr(exp->v.MatchExpr.subject, Load)
+            || !_validate_nonempty_seq((asdl_seq *)exp->v.MatchExpr.cases,
+                                       "cases", "MatchExpr")) {
+            return 0;
+        }
+        for (Py_ssize_t i = 0; i < asdl_seq_LEN(exp->v.MatchExpr.cases); i++) {
+            match_case_ty m = asdl_seq_GET(exp->v.MatchExpr.cases, i);
+            if (!validate_pattern(m->pattern, /*star_ok=*/0)
+                || (m->guard && !validate_expr(m->guard, Load))
+                || !_validate_nonempty_seq((asdl_seq *)m->body, "body", "MatchExpr")
+                || !validate_stmts(m->body)) {
+                return 0;
+            }
+        }
+        ret = 1;
+        break;
+    }
     case IfExp_kind:
         ret = validate_expr(exp->v.IfExp.test, Load) &&
             validate_expr(exp->v.IfExp.body, Load) &&
