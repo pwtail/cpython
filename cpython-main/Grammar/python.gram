@@ -785,6 +785,7 @@ expression[expr_ty] (memo):
     | invalid_if_expression
     | invalid_expression
     | invalid_legacy_expression
+    | def_expr
     | if_expression
     | disjunction
     | lambdef
@@ -980,6 +981,11 @@ group[expr_ty]:
 
 lambdef[expr_ty]:
     | 'lambda' a=[lambda_params] ':' b=expression {
+        _PyAST_Lambda((a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), b, EXTRA) }
+
+# funnypy: anonymous function expression, e.g. f = def(x): x + 1
+def_expr[expr_ty]:
+    | 'def' '(' a=[params] ')' ':' b=expression {
         _PyAST_Lambda((a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), b, EXTRA) }
 
 lambda_params[arguments_ty]:
