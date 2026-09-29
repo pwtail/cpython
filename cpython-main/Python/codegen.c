@@ -1426,7 +1426,19 @@ codegen_function_body(compiler *c, stmt_ty s, int is_async, Py_ssize_t funcflags
     }
 
     for (Py_ssize_t i = first_instr; i < asdl_seq_LEN(body); i++) {
-        VISIT_IN_SCOPE(c, stmt, (stmt_ty)asdl_seq_GET(body, i));
+        stmt_ty st = (stmt_ty)asdl_seq_GET(body, i);
+        /* funnypy: in a plain (non-generator, non-coroutine) function,
+           the value of a trailing expression statement is returned. */
+        if (i == asdl_seq_LEN(body) - 1
+                && st->kind == Expr_kind
+                && scope_type == COMPILE_SCOPE_FUNCTION
+                && !ste->ste_generator && !ste->ste_coroutine) {
+            VISIT_IN_SCOPE(c, expr, st->v.Expr.value);
+            _PyCompile_SetReturnsLastExpr(c, 1);
+        }
+        else {
+            VISIT_IN_SCOPE(c, stmt, st);
+        }
     }
     if (add_stopiteration_handler) {
         RETURN_IF_ERROR_IN_SCOPE(c, codegen_wrap_in_stopiteration_handler(c));
@@ -6658,7 +6670,7 @@ _PyCodegen_AddReturnAtEnd(compiler *c, int addNone)
     /* Make sure every instruction stream that falls off the end returns None.
      * This also ensures that no jump target offsets are out of bounds.
      */
-    if (addNone) {
+    if (addNone && !_PyCompile_ReturnsLastExpr(c)) {
         ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
     }
     ADDOP(c, NO_LOCATION, RETURN_VALUE);

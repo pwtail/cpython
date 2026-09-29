@@ -156,6 +156,8 @@ int _PyCompile_ResolveNameop(struct _PyCompiler *c, PyObject *mangled, int scope
 int _PyCompile_IsInteractiveTopLevel(struct _PyCompiler *c);
 int _PyCompile_IsInInlinedComp(struct _PyCompiler *c);
 int _PyCompile_ScopeType(struct _PyCompiler *c);
+void _PyCompile_SetReturnsLastExpr(struct _PyCompiler *c, int value);
+int _PyCompile_ReturnsLastExpr(struct _PyCompiler *c);
 int _PyCompile_OptimizationLevel(struct _PyCompiler *c);
 int _PyCompile_LookupArg(struct _PyCompiler *c, PyCodeObject *co, PyObject *name);
 PyObject *_PyCompile_Qualname(struct _PyCompiler *c);

@@ -70,6 +70,8 @@ struct compiler_unit {
     int u_nfblocks;
     int u_in_inlined_comp;
     int u_in_conditional_block;
+    int u_returns_last_expr;    /* funnypy: body ends with an expression whose
+                                   value is left on the stack to be returned */
 
     _PyCompile_FBlockInfo u_fblock[CO_MAXBLOCKS];
 
@@ -674,6 +676,7 @@ _PyCompile_EnterScope(compiler *c, identifier name, int scope_type,
 
     u->u_nfblocks = 0;
     u->u_in_inlined_comp = 0;
+    u->u_returns_last_expr = 0;
     u->u_metadata.u_firstlineno = lineno;
     u->u_metadata.u_consts = PyDict_New();
     if (!u->u_metadata.u_consts) {
@@ -1365,6 +1368,18 @@ int
 _PyCompile_IsInInlinedComp(compiler *c)
 {
     return c->u->u_in_inlined_comp;
+}
+
+void
+_PyCompile_SetReturnsLastExpr(compiler *c, int value)
+{
+    c->u->u_returns_last_expr = value;
+}
+
+int
+_PyCompile_ReturnsLastExpr(compiler *c)
+{
+    return c->u->u_returns_last_expr;
 }
 
 PyObject *
