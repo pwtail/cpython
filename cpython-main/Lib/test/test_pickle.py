@@ -727,6 +727,7 @@ class CompatPickleTests(unittest.TestCase):
                            EncodingWarning,
                            BaseExceptionGroup,
                            ExceptionGroup,
+                           MatchError,
                            _IncompleteInputError):
                     continue
                 if exc is not OSError and issubclass(exc, OSError):

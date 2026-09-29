@@ -726,6 +726,13 @@ SimpleExtendsException(PyExc_Exception, StopAsyncIteration,
 
 
 /*
+ *    MatchError extends Exception
+ */
+SimpleExtendsException(PyExc_Exception, MatchError,
+                       "Pattern matching failed in destructuring assignment.");
+
+
+/*
  *    StopIteration extends Exception
  */
 
@@ -4413,6 +4420,7 @@ static struct static_exception static_exceptions[] = {
     //ITEM(ExceptionGroup),
     ITEM(ImportError),
     ITEM(LookupError),
+    ITEM(MatchError),
     ITEM(MemoryError),
     ITEM(NameError),
     ITEM(OSError),
