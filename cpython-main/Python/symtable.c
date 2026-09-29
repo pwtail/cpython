@@ -2642,6 +2642,13 @@ symtable_visit_expr(struct symtable *st, expr_ty e)
             VISIT(st, expr, e->v.Slice.step);
         break;
     case Name_kind:
+        if (e->v.Name.ctx == Load &&
+            _PyUnicode_EqualToASCIIString(e->v.Name.id, "<pipe>")) {
+            PyErr_SetString(PyExc_SyntaxError,
+                            "'..' placeholder used outside a pipe placeholder position");
+            SET_ERROR_LOCATION(st->st_filename, LOCATION(e));
+            return 0;
+        }
         if (!st->st_cur->ste_in_unevaluated_annotation) {
             if (!symtable_add_def_ctx(st, e->v.Name.id,
                                     e->v.Name.ctx == Load ? USE : DEF_LOCAL,

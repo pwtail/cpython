@@ -97,9 +97,14 @@ func_type[mod_ty]: '(' a=[type_expressions] ')' '->' b=expression NEWLINE* ENDMA
 statements[asdl_stmt_seq*]: a=statement+ { (asdl_stmt_seq*)_PyPegen_seq_flatten(p, a) }
 
 statement[asdl_stmt_seq*]:
+    | a=match_assign NEWLINE {
+        _PyPegen_register_stmts(p,
+            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
     | a=compound_stmt { _PyPegen_register_stmts(p ,
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)
                         ) }
+    | a[asdl_stmt_seq*]=funnypy_lambda_stmt { _PyPegen_register_stmts(p, a) }
+    | a[asdl_stmt_seq*]=funnypy_pipe_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=simple_stmts { a }
 
 single_compound_stmt[asdl_stmt_seq*]:
@@ -108,6 +113,7 @@ single_compound_stmt[asdl_stmt_seq*]:
 
 statement_newline[asdl_stmt_seq*]:
     | a=single_compound_stmt NEWLINE { a }
+    | a[asdl_stmt_seq*]=funnypy_lambda_stmt NEWLINE { a }
     | simple_stmts
     | NEWLINE { (asdl_stmt_seq*)_PyPegen_singleton_seq(p, CHECK(stmt_ty, _PyAST_Pass(EXTRA))) }
     | ENDMARKER { _PyPegen_interactive_exit(p) }
@@ -116,9 +122,65 @@ simple_stmts[asdl_stmt_seq*]:
     | a=simple_stmt !';' NEWLINE { (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a) } # Not needed, there for speedup
     | a[asdl_stmt_seq*]=';'.simple_stmt+ [';'] NEWLINE { a }
 
+# Funny Python: anonymous functions with a full suite, allowed in statement
+# positions only (assignment RHS, return value, expression statement).
+funnypy_lambda_stmt[asdl_stmt_seq*]:
+    | n=NAME '=' 'def' '(' a=[params] ')' ':' body=block {
+        (asdl_stmt_seq*)_PyPegen_singleton_seq(p, CHECK(stmt_ty, _PyAST_FunctionDef(
+            n->v.Name.id,
+            (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
+            body, NULL, NULL, NULL, NULL, EXTRA))) }
+    | 'return' 'def' '(' a=[params] ')' ':' body=block {
+        _PyPegen_funnypy_lambda_return(p, CHECK(stmt_ty, _PyAST_FunctionDef(
+            _PyPegen_new_identifier(p, "<lambda>"),
+            (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
+            body, NULL, NULL, NULL, NULL, EXTRA))) }
+    | f=funnypy_lambda_def { (asdl_stmt_seq*)_PyPegen_singleton_seq(p, f) }
+
+# Shared rule: an anonymous function with a full suite and the synthetic name
+# "<lambda>" (used by lambdas and by the `..` placeholder def-filler).
+funnypy_lambda_def[stmt_ty]:
+    | 'def' '(' a=[params] ')' ':' body=block {
+        CHECK(stmt_ty, _PyAST_FunctionDef(
+            _PyPegen_new_identifier(p, "<lambda>"),
+            (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
+            body, NULL, NULL, NULL, NULL, EXTRA)) }
+
+# Funny Python: one pipeline stage `..call(...)` with an optional filler for
+# the `..` placeholder (a def lambda or an expression).  A bare stage never
+# ends with ':' so that `..match:` is not mistaken for a call stage.
+pipe_stage[void *]:
+    | '.' '.' e=primary f=funnypy_lambda_def { _PyPegen_funnypy_stage_def(p, e, f) }
+    | '.' '.' e=primary v=star_expressions { _PyPegen_funnypy_stage_expr(p, e, v) }
+    | '.' '.' e=primary !':' { _PyPegen_funnypy_stage_expr(p, e, NULL) }
+
+pipe_stages[asdl_seq*]:
+    | s=pipe_stages NEWLINE e=pipe_stage { _PyPegen_seq_append_to_end(p, s, e) }
+    | e=pipe_stage { _PyPegen_singleton_seq(p, e) }
+
+# Funny Python: an expression that is guaranteed to be a call with a `..`
+# placeholder (validated in the action, so that placeholder statements fail
+# fast without fetching the filler on unrelated syntax errors).
+hole_call_expr[expr_ty]:
+    | e=star_expressions { _PyPegen_funnypy_require_hole_call(p, e) }
+
+# Funny Python: pipeline / pipe-match / placeholder statements.
+funnypy_pipe_stmt[asdl_stmt_seq*]:
+    | a=star_expressions NEWLINE s=[ps=pipe_stages NEWLINE { ps }] '.' '.' "match" ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_pipeline_match(p, a, s, cases) }
+    | a=star_expressions NEWLINE s=pipe_stages NEWLINE {
+        _PyPegen_funnypy_pipeline(p, a, s) }
+    | a=star_expressions NEWLINE s=pipe_stages {
+        _PyPegen_funnypy_pipeline(p, a, s) }
+    | c=hole_call_expr f=funnypy_lambda_def {
+        _PyPegen_funnypy_pipe_hole_def(p, c, f) }
+    | c=hole_call_expr v=star_expressions NEWLINE {
+        _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
+
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
 simple_stmt[stmt_ty] (memo):
+    | &"match" match_assign
     | assignment
     | &"type" type_alias
     | &('import' | 'from' | "lazy") import_stmt
@@ -164,6 +226,12 @@ assignment[stmt_ty]:
     | a=single_target b=augassign ~ c=annotated_rhs {
          _PyAST_AugAssign(a, b->kind, c, EXTRA) }
     | invalid_assignment
+
+# Funny Python: pattern destructuring `match PATTERN = value`; desugars in a
+# helper into `match value: case PATTERN: pass; case _: raise MatchError`.
+match_assign[stmt_ty]:
+    | "match" pat=patterns '=' v=annotated_rhs {
+        _PyPegen_funnypy_match_assign(p, pat, v) }
 
 annotated_rhs[expr_ty]: yield_expr | star_expressions
 
@@ -1079,7 +1147,7 @@ arguments[expr_ty] (memo):
     | invalid_arguments
 
 args[expr_ty]:
-    | a[asdl_expr_seq*]=','.(starred_expression | ( assignment_expression | expression !':=') !'=')+ b=[',' k=kwargs {k}] {
+    | a[asdl_expr_seq*]=','.(starred_expression | pipe_hole | ( assignment_expression | expression !':=') !'=')+ b=[',' k=kwargs {k}] {
         _PyPegen_collect_call_seqs(p, a, b, EXTRA) }
     | a=kwargs { _PyAST_Call(_PyPegen_dummy_name(p),
                           CHECK_NULL_ALLOWED(asdl_expr_seq*, _PyPegen_seq_extract_starred_exprs(p, a)),
@@ -1090,6 +1158,11 @@ kwargs[asdl_seq*]:
     | a=','.kwarg_or_starred+ ',' b=','.kwarg_or_double_starred+ { _PyPegen_join_sequences(p, a, b) }
     | ','.kwarg_or_starred+
     | ','.kwarg_or_double_starred+
+
+# Funny Python: `..` placeholder inside call arguments (filled by a def
+# lambda or an expression following the call statement).
+pipe_hole[expr_ty]:
+    | '.' '.' { _PyAST_Name(_PyPegen_new_identifier(p, "<pipe>"), Load, EXTRA) }
 
 starred_expression[expr_ty]:
     | invalid_starred_expression_unpacking

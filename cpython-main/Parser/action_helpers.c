@@ -2113,6 +2113,356 @@ _PyPegen_checked_from_import(Parser *p, asdl_seq *dots, expr_ty module_name,
                              col_offset, end_lineno, end_col_offset, arena);
 }
 
+/* Funny Python: `return def(...): ...` desugars into a FunctionDef with the
+   synthetic name "<lambda>" immediately followed by `return <lambda>`.
+   Locations are copied from the already built FunctionDef node. */
+asdl_stmt_seq *
+_PyPegen_funnypy_lambda_return(Parser *p, stmt_ty function_def)
+{
+    assert(function_def != NULL);
+    assert(function_def->kind == FunctionDef_kind);
+    expr_ty ref = _PyAST_Name(
+        function_def->v.FunctionDef.name, Load,
+        function_def->lineno, function_def->col_offset,
+        function_def->end_lineno, function_def->end_col_offset, p->arena);
+    if (ref == NULL) {
+        return NULL;
+    }
+    stmt_ty ret = _PyAST_Return(
+        ref,
+        function_def->lineno, function_def->col_offset,
+        function_def->end_lineno, function_def->end_col_offset, p->arena);
+    if (ret == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *body = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, ret);
+    if (body == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_seq_insert_in_front(p, function_def, (asdl_seq *)body);
+}
+
+/* Funny Python: `match PATTERN = value` desugars into
+   `match value: case PATTERN if True: pass; case _: raise MatchError`.
+   The `if True` guard is load-bearing: it makes the first case refutable for
+   the compiler, so irrefutable user patterns (`match _ = ...`) stay legal
+   instead of triggering "makes remaining patterns unreachable". */
+stmt_ty
+_PyPegen_funnypy_match_assign(Parser *p, pattern_ty pattern, expr_ty value)
+{
+    if (pattern == NULL || value == NULL) {
+        return NULL;
+    }
+    int lineno = value->lineno;
+    int col_offset = value->col_offset;
+    int end_lineno = value->end_lineno;
+    int end_col_offset = value->end_col_offset;
+
+    stmt_ty pass_stmt = _PyAST_Pass(
+        lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (pass_stmt == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *ok_body = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, pass_stmt);
+    if (ok_body == NULL) {
+        return NULL;
+    }
+    expr_ty ok_guard = _PyAST_Constant(
+        Py_True, NULL, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (ok_guard == NULL) {
+        return NULL;
+    }
+    match_case_ty ok_case = _PyAST_match_case(pattern, ok_guard, ok_body, p->arena);
+    if (ok_case == NULL) {
+        return NULL;
+    }
+
+    PyObject *exc_id = _PyPegen_new_identifier(p, "MatchError");
+    if (exc_id == NULL) {
+        return NULL;
+    }
+    expr_ty exc_name = _PyAST_Name(
+        exc_id, Load, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (exc_name == NULL) {
+        return NULL;
+    }
+    expr_ty exc_call = _PyAST_Call(
+        exc_name, NULL, NULL, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (exc_call == NULL) {
+        return NULL;
+    }
+    stmt_ty raise_stmt = _PyAST_Raise(
+        exc_call, NULL, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (raise_stmt == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *err_body = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, raise_stmt);
+    if (err_body == NULL) {
+        return NULL;
+    }
+    pattern_ty wildcard = _PyAST_MatchAs(
+        NULL, NULL, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+    if (wildcard == NULL) {
+        return NULL;
+    }
+    match_case_ty err_case = _PyAST_match_case(wildcard, NULL, err_body, p->arena);
+    if (err_case == NULL) {
+        return NULL;
+    }
+
+    asdl_seq *err_cases = _PyPegen_singleton_seq(p, err_case);
+    if (err_cases == NULL) {
+        return NULL;
+    }
+    asdl_match_case_seq *cases = (asdl_match_case_seq *)_PyPegen_seq_insert_in_front(
+        p, ok_case, err_cases);
+    if (cases == NULL) {
+        return NULL;
+    }
+    return _PyAST_Match(
+        value, cases, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+}
+
+/* Funny Python `..` pipeline / placeholder support. */
+
+typedef struct {
+    stmt_ty def_;  /* hoisted FunctionDef from a def-filler, or NULL */
+    expr_ty call;  /* the stage call/primary expression */
+} FunnypyPipeStage;
+
+/* Find the single `..` placeholder among the direct positional arguments of
+   `call`.  Returns its index, -1 when absent, -2 when an error was raised
+   (more than one placeholder). */
+static Py_ssize_t
+funnypy_find_hole(Parser *p, expr_ty call)
+{
+    if (call == NULL || call->kind != Call_kind) {
+        return -1;
+    }
+    asdl_expr_seq *args = call->v.Call.args;
+    Py_ssize_t hole = -1;
+    Py_ssize_t n = asdl_seq_LEN(args);
+    for (Py_ssize_t i = 0; i < n; i++) {
+        expr_ty arg = asdl_seq_GET(args, i);
+        if (arg->kind == Name_kind &&
+            _PyUnicode_EqualToASCIIString(arg->v.Name.id, "<pipe>")) {
+            if (hole >= 0) {
+                _PyPegen_raise_error(p, PyExc_SyntaxError, 0,
+                                     "at most one '..' placeholder per call");
+                return -2;
+            }
+            hole = i;
+        }
+    }
+    return hole;
+}
+
+static expr_ty
+funnypy_lambda_ref(Parser *p, expr_ty like)
+{
+    PyObject *id = _PyPegen_new_identifier(p, "<lambda>");
+    if (id == NULL) {
+        return NULL;
+    }
+    return _PyAST_Name(id, Load,
+                       like->lineno, like->col_offset,
+                       like->end_lineno, like->end_col_offset, p->arena);
+}
+
+expr_ty
+_PyPegen_funnypy_require_hole_call(Parser *p, expr_ty e)
+{
+    Py_ssize_t hole = funnypy_find_hole(p, e);
+    if (hole < 0) {
+        return NULL;  /* -1: not a hole call (backtrack); -2: error raised */
+    }
+    return e;
+}
+
+void *
+_PyPegen_funnypy_stage_def(Parser *p, expr_ty e, stmt_ty def)
+{
+    Py_ssize_t hole = funnypy_find_hole(p, e);
+    if (hole < 0) {
+        return NULL;  /* error raised, or no placeholder: not our construct */
+    }
+    expr_ty ref = funnypy_lambda_ref(p, e);
+    if (ref == NULL) {
+        return NULL;
+    }
+    asdl_seq_SET(e->v.Call.args, hole, ref);
+    FunnypyPipeStage *stage = _PyArena_Malloc(p->arena, sizeof(FunnypyPipeStage));
+    if (stage == NULL) {
+        return NULL;
+    }
+    stage->def_ = def;
+    stage->call = e;
+    return stage;
+}
+
+void *
+_PyPegen_funnypy_stage_expr(Parser *p, expr_ty e, expr_ty filler)
+{
+    if (filler != NULL) {
+        Py_ssize_t hole = funnypy_find_hole(p, e);
+        if (hole < 0) {
+            return NULL;  /* error raised, or filler without a placeholder */
+        }
+        asdl_seq_SET(e->v.Call.args, hole, filler);
+    }
+    FunnypyPipeStage *stage = _PyArena_Malloc(p->arena, sizeof(FunnypyPipeStage));
+    if (stage == NULL) {
+        return NULL;
+    }
+    stage->def_ = NULL;
+    stage->call = e;
+    return stage;
+}
+
+/* Append `result` as the last positional argument of `call`, or wrap a bare
+   primary (`..len`) into a call with `result` as the only argument. */
+static expr_ty
+funnypy_pipe_apply(Parser *p, expr_ty call, expr_ty result)
+{
+    if (call->kind == Call_kind) {
+        asdl_seq *args = _PyPegen_seq_append_to_end(
+            p, (asdl_seq *)call->v.Call.args, result);
+        if (args == NULL) {
+            return NULL;
+        }
+        call->v.Call.args = (asdl_expr_seq *)args;
+        return call;
+    }
+    asdl_seq *only = _PyPegen_singleton_seq(p, result);
+    if (only == NULL) {
+        return NULL;
+    }
+    return _PyAST_Call(
+        call, (asdl_expr_seq *)only, NULL,
+        call->lineno, call->col_offset,
+        call->end_lineno, call->end_col_offset, p->arena);
+}
+
+/* Apply all stages in order (data-last).  On success, *result_out is the
+   final expression and the return value is the sequence of hoisted
+   def-fillers (or NULL when there are none).  Returns (asdl_stmt_seq *)-1
+   on error. */
+static asdl_stmt_seq *
+funypy_pipe_finish(Parser *p, expr_ty value, asdl_seq *stages, expr_ty *result_out)
+{
+    expr_ty result = value;
+    asdl_stmt_seq *defs = NULL;
+    Py_ssize_t n = stages ? asdl_seq_LEN(stages) : 0;
+    for (Py_ssize_t i = 0; i < n; i++) {
+        FunnypyPipeStage *stage = asdl_seq_GET_UNTYPED(stages, i);
+        result = funnypy_pipe_apply(p, stage->call, result);
+        if (result == NULL) {
+            return (asdl_stmt_seq *)-1;
+        }
+        if (stage->def_ != NULL) {
+            asdl_seq *next = defs
+                ? _PyPegen_seq_append_to_end(p, (asdl_seq *)defs, stage->def_)
+                : _PyPegen_singleton_seq(p, stage->def_);
+            if (next == NULL) {
+                return (asdl_stmt_seq *)-1;
+            }
+            defs = (asdl_stmt_seq *)next;
+        }
+    }
+    *result_out = result;
+    return defs;
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_pipeline(Parser *p, expr_ty value, asdl_seq *stages)
+{
+    expr_ty result = NULL;
+    asdl_stmt_seq *defs = funypy_pipe_finish(p, value, stages, &result);
+    if (defs == (asdl_stmt_seq *)-1) {
+        return NULL;
+    }
+    stmt_ty expr_stmt = _PyAST_Expr(
+        result, result->lineno, result->col_offset,
+        result->end_lineno, result->end_col_offset, p->arena);
+    if (expr_stmt == NULL) {
+        return NULL;
+    }
+    if (defs == NULL) {
+        return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, expr_stmt);
+    }
+    asdl_seq *out = _PyPegen_seq_append_to_end(p, (asdl_seq *)defs, expr_stmt);
+    if (out == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)out;
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_pipeline_match(Parser *p, expr_ty value, asdl_seq *stages,
+                                asdl_match_case_seq *cases)
+{
+    expr_ty result = NULL;
+    asdl_stmt_seq *defs = funypy_pipe_finish(p, value, stages, &result);
+    if (defs == (asdl_stmt_seq *)-1) {
+        return NULL;
+    }
+    stmt_ty match_stmt = _PyAST_Match(
+        result, cases,
+        result->lineno, result->col_offset,
+        result->end_lineno, result->end_col_offset, p->arena);
+    if (match_stmt == NULL) {
+        return NULL;
+    }
+    if (defs == NULL) {
+        return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, match_stmt);
+    }
+    asdl_seq *out = _PyPegen_seq_append_to_end(p, (asdl_seq *)defs, match_stmt);
+    if (out == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)out;
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_pipe_hole_def(Parser *p, expr_ty c, stmt_ty def)
+{
+    Py_ssize_t hole = funnypy_find_hole(p, c);
+    if (hole < 0) {
+        return NULL;  /* error raised, or no placeholder: plain call + def stmt */
+    }
+    expr_ty ref = funnypy_lambda_ref(p, c);
+    if (ref == NULL) {
+        return NULL;
+    }
+    asdl_seq_SET(c->v.Call.args, hole, ref);
+    stmt_ty expr_stmt = _PyAST_Expr(
+        c, c->lineno, c->col_offset, c->end_lineno, c->end_col_offset, p->arena);
+    if (expr_stmt == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *out = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, expr_stmt);
+    if (out == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_seq_insert_in_front(p, def, (asdl_seq *)out);
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_pipe_hole_expr(Parser *p, expr_ty c, expr_ty v)
+{
+    Py_ssize_t hole = funnypy_find_hole(p, c);
+    if (hole < 0) {
+        return NULL;  /* error raised, or no placeholder */
+    }
+    asdl_seq_SET(c->v.Call.args, hole, v);
+    stmt_ty expr_stmt = _PyAST_Expr(
+        c, c->lineno, c->col_offset, c->end_lineno, c->end_col_offset, p->arena);
+    if (expr_stmt == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, expr_stmt);
+}
+
 asdl_stmt_seq*
 _PyPegen_register_stmts(Parser *p, asdl_stmt_seq* stmts) {
     if (!p->call_invalid_rules) {
