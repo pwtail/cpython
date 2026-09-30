@@ -2223,6 +2223,100 @@ _PyPegen_funnypy_match_assign(Parser *p, pattern_ty pattern, expr_ty value)
         value, cases, lineno, col_offset, end_lineno, end_col_offset, p->arena);
 }
 
+/* Funny Python: `match def name(params):` with case blocks — a function that
+   dispatches on the tuple of its positional arguments.  Desugars into
+   `def name(params): return match (params...): cases`; the cases come from the
+   grammar.  Non-positional parameters have no fixed-arity subject, so they are
+   rejected with a clear error instead of being silently ignored. */
+stmt_ty
+_PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
+                           expr_ty returns, asdl_match_case_seq *cases)
+{
+    if (name == NULL || args == NULL || cases == NULL) {
+        return NULL;
+    }
+    int lineno = name->lineno;
+    int col_offset = name->col_offset;
+    int end_lineno = name->end_lineno;
+    int end_col_offset = name->end_col_offset;
+
+    if (args->vararg != NULL || args->kwarg != NULL ||
+        asdl_seq_LEN(args->kwonlyargs) > 0) {
+        _PyPegen_raise_error(
+            p, PyExc_SyntaxError, 0,
+            "match def requires plain positional parameters "
+            "(no *args, **kwargs or keyword-only parameters)");
+        return NULL;
+    }
+    Py_ssize_t nposonly = asdl_seq_LEN(args->posonlyargs);
+    Py_ssize_t npos = asdl_seq_LEN(args->args);
+    Py_ssize_t nargs = nposonly + npos;
+    if (nargs == 0) {
+        _PyPegen_raise_error(
+            p, PyExc_SyntaxError, 0,
+            "match def requires at least one parameter");
+        return NULL;
+    }
+
+    /* Subject: the positional parameter values, in declaration order.  A
+       single parameter is used directly (like subject_expr); several form a
+       tuple. */
+    expr_ty subject;
+    if (nargs == 1) {
+        arg_ty only = nposonly
+            ? asdl_seq_GET(args->posonlyargs, 0)
+            : asdl_seq_GET(args->args, 0);
+        subject = _PyAST_Name(
+            only->arg, Load, lineno, col_offset,
+            end_lineno, end_col_offset, p->arena);
+    }
+    else {
+        asdl_expr_seq *elts = NULL;
+        for (Py_ssize_t i = 0; i < nargs; i++) {
+            arg_ty a = i < nposonly
+                ? asdl_seq_GET(args->posonlyargs, i)
+                : asdl_seq_GET(args->args, i - nposonly);
+            expr_ty e = _PyAST_Name(
+                a->arg, Load, lineno, col_offset,
+                end_lineno, end_col_offset, p->arena);
+            if (e == NULL) {
+                return NULL;
+            }
+            elts = (asdl_expr_seq *)_PyPegen_seq_append_to_end(
+                p, elts ? (asdl_seq *)elts : NULL, e);
+            if (elts == NULL) {
+                return NULL;
+            }
+        }
+        subject = _PyAST_Tuple(
+            elts, Load, lineno, col_offset,
+            end_lineno, end_col_offset, p->arena);
+    }
+    if (subject == NULL) {
+        return NULL;
+    }
+
+    expr_ty match_expr = _PyAST_MatchExpr(
+        subject, cases, lineno, col_offset,
+        end_lineno, end_col_offset, p->arena);
+    if (match_expr == NULL) {
+        return NULL;
+    }
+    stmt_ty ret = _PyAST_Return(
+        match_expr, lineno, col_offset,
+        end_lineno, end_col_offset, p->arena);
+    if (ret == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *body = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, ret);
+    if (body == NULL) {
+        return NULL;
+    }
+    return _PyAST_FunctionDef(
+        name->v.Name.id, args, body, NULL, returns, NULL, NULL,
+        lineno, col_offset, end_lineno, end_col_offset, p->arena);
+}
+
 /* Funny Python `..` pipeline / placeholder support. */
 
 typedef struct {

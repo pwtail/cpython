@@ -214,6 +214,7 @@ compound_stmt[stmt_ty]:
     | &('for' | 'async') for_stmt
     | &'try' try_stmt
     | &'while' while_stmt
+    | &("match" 'def') funnypy_match_def
     | match_stmt
 
 # SIMPLE STATEMENTS
@@ -597,6 +598,12 @@ guard[expr_ty]: 'if' guard=named_expression { guard }
 match_expr[expr_ty]:
     | "match" subject=subject_expr ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyAST_MatchExpr(subject, cases, EXTRA) }
+
+# funnypy: a function defined by case clauses (multiple dispatch), e.g.
+# match def mufun(x, y, z): followed by case blocks dispatching on (x, y, z).
+funnypy_match_def[stmt_ty]:
+    | "match" 'def' n=NAME '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_match_def(p, n, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases) }
 
 patterns[pattern_ty]:
     | patterns[asdl_pattern_seq*]=open_sequence_pattern {
