@@ -48,6 +48,13 @@ class MultilineLambdaTests(unittest.TestCase):
         f = def(x): return x + 1
         self.assertEqual(f(1), 2)
 
+    def test_assignment_rhs_on_next_line(self):
+        f =
+            def(x):
+                return x * 2
+        self.assertEqual(f.__name__, "f")
+        self.assertEqual(f(21), 42)
+
     def test_parameters(self):
         f = def(a, /, b=2, *args, c: int = 3, **kw):
             return (a, b, args, c, kw)

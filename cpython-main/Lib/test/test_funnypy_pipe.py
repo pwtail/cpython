@@ -33,6 +33,35 @@ class PipelineTests(unittest.TestCase):
         ..print
         self.assertEqual(len([1, 2, 3]), 3)
 
+    def test_bare_stage_def_filler(self):
+        # `..name def(x): ...` is `name(def, value)` (data-last).
+        out = []
+        for_each = def(f, data):
+            for x in data:
+                f(x)
+        [1, 2, 3]
+        ..for_each def(x): out.append(x * 10)
+        self.assertEqual(out, [10, 20, 30])
+
+    def test_bare_stage_def_filler_next_line(self):
+        out = []
+        for_each = def(f, data):
+            for x in data:
+                f(x)
+        [1, 2, 3]
+        ..for_each
+            def(x): out.append(x * 10)
+        self.assertEqual(out, [10, 20, 30])
+
+    def test_hole_filler_next_line(self):
+        seen = []
+        show3 = def(a, b, f, data):
+            seen.append((f(0), a, b, list(data)))
+        [1]
+        ..show3(10, 20, ..)
+            def(x): return x + 100
+        self.assertEqual(seen, [(100, 10, 20, [1])])
+
     def test_pipeline_result_in_expression_statement(self):
         # A pipeline is an expression statement: its value is discarded in a
         # script, displayed in the REPL/notebook.
@@ -134,6 +163,9 @@ class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_inline_pipeline_rejected(self):
         check_syntax_error(self, "x .. f(y)")
+
+    def test_def_filler_on_call_without_hole(self):
+        check_syntax_error(self, "[1]\n..map(len) def(x): return x")
 
     def test_ellipsis_call_unchanged(self):
         compile("f(...)", "<t>", "exec")
