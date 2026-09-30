@@ -48,6 +48,11 @@ objects = MyModel.objects
     физической строки на `.name`), флаг `at_line_continuation` в
     `Parser/lexer/state.h` (подавляет INDENT/DEDENT строки-продолжения), ветка
     в NEWLINE-пути, перенаправляющая `.name` в текущую логическую строку.
+    Peek перечитывает `p` после `underflow` (буфер перезаполняется) и
+    восстанавливает `tok->lineno` на время создания NEWLINE-токена: иначе
+    преждевременное чтение следующей строки сдвигало номер строки текущего
+    NEWLINE и ломало позиции ошибок/подсказки ключевых слов
+    (`test_traceback`).
   - `Grammar/python.gram` — statement-правило `funnypy_assign_stmt`
     (`star_targets '=' NEWLINE INDENT annotated_rhs NEWLINE DEDENT`),
     подключённое в `statement` (не в `statement_newline`).
@@ -57,6 +62,9 @@ objects = MyModel.objects
   терминальный REPL — нет (как у пайплайна).
 - **Суперсет R1:** обе формы раньше были SyntaxError; валидный Python
   неизменён (leading `.` в валидном Python невозможен; `.5`/`...` не задеты).
+  Адаптированные тесты: `Lib/test/test_codeop.py` — `a = ` теперь
+  *incomplete* (RHS может начаться на следующей строке), а не invalid;
+  перенесён из `test_invalid` в `test_incomplete`.
 - **Тесты:** `Lib/test/test_funnypy_line_cont.py` — RHS-выражение и
   RHS-лямбда на следующей строке, цепочка `.`, продолжение после вызова,
   неизменность `.5`/`...`, ошибка на `.5` после `x = 1`.

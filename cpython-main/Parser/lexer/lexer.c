@@ -437,6 +437,10 @@ tok_next_line_starts_with_dot(struct tok_state *tok)
         if (!tok->underflow(tok)) {
             return 0;
         }
+        /* underflow() refilled the buffer from the next line, so `p` (captured
+           before it) points at stale data; scanning it misdetects a dot and
+           merges unrelated lines.  Re-read the cursor. */
+        p = tok->cur;
     }
     while (p < tok->inp && (*p == ' ' || *p == '\t' || *p == '\014')) {
         p++;
@@ -825,7 +829,11 @@ tok_get_normal_mode(struct tok_state *tok, tokenizer_mode* current_tok, struct t
             p_end = tok->cur;
             return MAKE_TOKEN(NL);
         }
-        /* Funny Python: a line starting with `.name` continues this line. */
+        /* Funny Python: a line starting with `.name` continues this line.
+           The peek may read the next line ahead (file tokenizer), which
+           advances tok->lineno; this NEWLINE still belongs to the current
+           line, so put the number back for the token and re-advance after. */
+        int lineno_before_peek = tok->lineno;
         if (tok_next_line_starts_with_dot(tok)) {
             tok->at_line_continuation = 1;
             goto nextline;
@@ -833,6 +841,13 @@ tok_get_normal_mode(struct tok_state *tok, tokenizer_mode* current_tok, struct t
         p_start = tok->start;
         p_end = tok->cur - 1; /* Leave '\n' out of the string */
         tok->cont_line = 0;
+        if (tok->lineno != lineno_before_peek) {
+            int lineno_after_peek = tok->lineno;
+            tok->lineno = lineno_before_peek;
+            int rc = MAKE_TOKEN(NEWLINE);
+            tok->lineno = lineno_after_peek;
+            return rc;
+        }
         return MAKE_TOKEN(NEWLINE);
     }
 
