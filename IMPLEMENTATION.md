@@ -507,6 +507,42 @@ inline в `codegen_function_body`; `compiler_unit` имеет дополните
 **Тесты:** `Lib/test/test_funnypy_expr.py` (75 тестов); блок-filler'ы
 пайплайна — в `Lib/test/test_funnypy_pipe.py` (класс `BlockFillerTests`).
 
+## Фаза 8. Значение пайплайна `..` и RHS-форма — выполнено
+
+Спека: `specs/pipeline-operator.md`. Форма из запроса:
+`res =` + `def(): 42` + `..run()` ≡ `res = run(def(): 42)` ≡ 42;
+эквивалент форме B (`run def(): return 42`, R10) держится на неявном return
+(R5) внутри def-блока.
+
+1. **Значение пайплайна — не только плоское выражение.** Добавлены def-блок
+   (`funnypy_lambda_def`, хоистится как `FunctionDef <lambda>`,
+   значением — `Name("<lambda>")`) и блочные выражения
+   `match`/`if`/`with`/`try` (уже `expr`-узлы, подставляются как есть).
+   Отдельного правила `pipe_value` нет: раскладка токенов различается —
+   у плоского выражения между значением и звеньями стоит `NEWLINE`, у
+   блочного/def — нет, поэтому формы выписаны явными альтернативами.
+2. **RHS-форма.** Новое `funnypy_pipe_assign_stmt`
+   (`targets '=' NEWLINE INDENT <value> <stages> NEWLINE DEDENT`) в `statement`
+   после `simple_stmts`, но **перед** `match_expr_stmt`/`if_expr_stmt`/… —
+   те иначе проглотят блок и оставят звенья висеть. `a = b = …` поддержано.
+3. **Standalone def-значение** — альтернативы `funnypy_lambda_def pipe_stages`
+   в `funnypy_lambda_stmt` **перед** голой def-альтернативой (иначе блок
+   заканчивает statement и звенья остаются).
+4. **Хелперы.** `funnypy_def_value_ref`, `funnypy_pipe_build` (хоист +
+   `Expr`/`Assign`), `pipeline_def`, `pipe_assign`; `pipeline` — обёртка
+   над `pipe_build`.
+5. **Дефер: standalone-форма блочного значения.** «`match …` / `if …` /
+   `try …`, затем `..`» не поддержана. Правило перед `compound_stmt`
+   перехватывало generic `invalid_block` вместо `invalid_if_stmt` и ломало
+   `test_exceptions` («expected an indented block after 'if' statement»);
+   все funnypy statement-правила стоят после `compound_stmt` именно поэтому.
+   В RHS-форме блочное значение работает — там нет конкурирующего
+   statement-пути с лучшим сообщением.
+
+**Тесты:** `Lib/test/test_funnypy_pipe.py`, класс `PipeValueTests`
+(14 тестов); регрессии — `test_exceptions`/`test_grammar`/`test_syntax`/
+`test_patma`/`test_compile`/`test_codeop`/`test_tokenize` и смежные наборы.
+
 ## Если что-то пошло не так
 
 - **`make regen-pegen` падает** — читать первую ошибку pegen: опечатка в
@@ -536,6 +572,11 @@ inline в `codegen_function_body`; `compiler_unit` имеет дополните
 - **Segfault, если опциональная группа из нескольких элементов без action**
   (`s=[a b]`) — pegen возвращает `dummy_name` (мусор), а не значение
   элемента: писать `s=[x=a b { x }]`.
+- **Сообщение об ошибке стало generic («expected an indented block» вместо
+  «after 'if' statement»)** — новая альтернатива стейтмента с `if_expr`/
+  `try_expr`/… стоит до `compound_stmt` и перехватывает generic
+  `invalid_block`; держать такие альтернативы после `compound_stmt` (см.
+  фазу 8).
 - **`check_syntax_error` падает на `err.lineno is None`** — новая
   compile-ошибка из `symtable.c` без `SET_ERROR_LOCATION`.
 - **Поехали offset'ы в `test_exceptions` на формах вроде `f{a + b + c}`** —

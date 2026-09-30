@@ -42,6 +42,24 @@ run(..) try:              # filler — блок-выражение (R11)
 except:
     'other'
 
+res =                     # значение пайплайна в RHS присваивания: любое
+    21                    # выражение, блочное выражение (match/if/with/try)
+    ..double()            # или def-блок; = res = double(21)
+
+res =                     # def-блок хоистится как FunctionDef <lambda>
+    def():                # = def <lambda>(): 42
+        42                #   res = run(<lambda>)
+    ..run()
+
+def():                    # standalone: пайплайн на анонимной функции
+    print('Running')      # = def <lambda>(): print('Running')
+..run()                   #   <lambda> ..run()
+
+res =                     # блочное значение в RHS
+    match x:
+        case 1: "one"
+    ..str()               # = res = str(match x: …)
+
 x                    # pipe-match: обычный compound match с piped-субъектом
 ..match:
     case 1:
@@ -79,11 +97,22 @@ x                    # pipe-match: обычный compound match с piped-суб
   `match(..) def(…): …`.
 - `x ..match:` = `match x:`; имена связываются в текущей области. Стадии до
   `..match:` применяются по цепочке, итог — субъект match.
+- Значение пайплайна (то, что идёт до звеньев) — не только плоское
+  выражение: допустимы def-блок (`def(): …`, хоистится как `<lambda>`) и
+  блочные выражения `match`/`if`/`with`/`try`. В RHS присваивания пайплайн
+  записывается как `цель =` с новой строки, значением ниже и звеньями на
+  его уровне (`res =` / ‹значение› / `..run()`); множественные цели
+  (`a = b = …`) поддержаны.
 
 ## Semantics
 
 - Pipeline: `[v] ..f(a) ..g(b)` → `g(f(a, v), b)` — десахаринг, промежуточные
   значения не сохраняются в переменные.
+- Значение пайплайна: def-блок десахарится как у filler'а (хоист
+  `FunctionDef <lambda>` перед стейтментом, значением — `Name("<lambda>")`);
+  блочное выражение — уже `expr`-узел (`MatchExpr`/`IfExpr`/`WithExpr`/
+  `TryExpr`) и подставляется как есть. Результат заворачивается в `Expr`, а
+  в RHS-форме — в `Assign(targets, результат)`.
 - Placeholder: hole — маркерный узел; filler подставляется в AST до
   компиляции. def-filler хоистится отдельным statement'ом FunctionDef с
   синтетическим именем `<lambda>` перед стейтментом (как у лямбд).
@@ -112,17 +141,37 @@ x                    # pipe-match: обычный compound match с piped-суб
     hole-expr), `funnypy_block_arg_stmt` (R10: statement + RHS, lookahead
     `&'def'`). `funnypy_pipe_stmt` подключено в `statement` и
     `statement_newline`; `funnypy_block_arg_stmt` — только в `statement`
-    (после `funnypy_pipe_stmt`), чтобы не задеть REPL.
+    (после `funnypy_pipe_stmt`), чтобы не задеть REPL. `funnypy_pipe_assign_stmt`
+    (пайплайн в RHS: плоское/блочное/def-значение) подключено в `statement`
+    после `simple_stmts`, но перед `match_expr_stmt`/`if_expr_stmt`/… — те
+    иначе проглотят блок и оставят звенья; def-значение добавлено также
+    альтернативами `funnypy_lambda_def pipe_stages` в `funnypy_lambda_stmt`
+    перед голой def-альтернативой. Оба правила — **после** `compound_stmt`,
+    иначе их блок-выражения перехватывают generic `invalid_block` вместо
+    `invalid_if_stmt`/`invalid_try_stmt`/… (см. ограничения).
   - `Parser/action_helpers.c` — `FunnypyPipeStage`, `funnypy_find_hole`
     (один hole в прямых позиционных аргументах внешнего вызова, >1 →
     SyntaxError), `funnypy_fill_def` (резолюция филлера: hole → ссылка,
     голая ссылка → обёртка в вызов; `Call` без hole — откат),
     `stage_def`/`stage_expr`, `pipe_apply`/`pipeline`/`pipeline_match`
     (data-last сборка), `pipe_hole_def`/`pipe_hole_expr`,
-    `block_expr`/`block_assign` (R10: `[FunctionDef, Expr|Assign]`).
+    `block_expr`/`block_assign` (R10: `[FunctionDef, Expr|Assign]`),
+    `funnypy_def_value_ref` (`Name("<lambda>")` с позицией def-блока),
+    `funnypy_pipe_build` (общая сборка: хоист value-def + `Expr`/`Assign`),
+    `pipeline_def` (standalone на def-блоке), `pipe_assign` (RHS-форма);
+    `pipeline` отрефакторен в обёртку над `pipe_build`.
   - `Python/symtable.c` — compile-ошибка на `Name("<pipe>")` в Load-контексте
     (незаполненный placeholder) с локацией через `SET_ERROR_LOCATION`.
 - **Ограничения v1 (проверено):**
+  - Значение пайплайна в **standalone**-форме — плоское выражение или
+    def-блок; standalone-форма блочного значения (`match …` / `if …` /
+    `try …`, затем `..`) **не поддержана (дефер)**. Правило перед
+    `compound_stmt` перехватывало generic `invalid_block` вместо
+    `invalid_if_stmt`/`invalid_try_stmt`/… и ломало сообщения об ошибках
+    (`test_exceptions`: «expected an indented block after 'if' statement»);
+    все funnypy statement-правила стоят после `compound_stmt` именно поэтому.
+    Блочное значение работает в RHS-форме (`res =` / ‹блок› / `..f()`),
+    которая этой коллизии не имеет.
   - def-filler и filler-блок-выражение (`if`/`with`/`try`, R11) всегда
     последние: блок съедает финальный NEWLINE/DEDENT, разделителя для
     следующей стадии нет. Стадии после такого filler'а — SyntaxError.
@@ -156,4 +205,8 @@ x                    # pipe-match: обычный compound match с piped-суб
   `BlockArgumentTests`: statement/RHS, атрибут и subscript, def с параметрами,
   эквивалентность `(..)`, неявный return результата вызова, two-statement
   поведение при переносе строки, негативы `f(a) def()`, вложенный и двойной
-  hole.
+  hole. Значение пайплайна — класс `PipeValueTests`: форма из запроса и её
+  эквивалентность форме B, хоист def-значения как `<lambda>`, standalone def,
+  def с параметрами, плоское выражение, голая стадия, цепочка стадий,
+  блочные значения `match`/`if`/`with`/`try` в RHS, множественные цели,
+  неявный return результата пайплайна.
