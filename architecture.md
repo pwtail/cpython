@@ -51,10 +51,11 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
   `codegen_match_inner` / `codegen_match_expr`). AST и грамматику не трогает;
   задаёт исход всех форм match при отсутствии совпадения (R8). Потребовал
   `case _: pass`-адаптации неисчерпывающих match в stdlib.
-- `funny-python-match-def` — depends-on: грамматика (`funnypy_match_def`) и
-  парсер-хелпер (`Parser/action_helpers.c`, `Parser/pegen.h`). AST/codegen не
-  трогает: десахарит в `FunctionDef` + `Return(MatchExpr)`; no-match
-  наследует R8.
+- `funny-python-match-def` — depends-on: грамматика (`funnypy_match_def` для
+  именованной формы; альтернативы в `funnypy_lambda_def`/`funnypy_lambda_stmt`
+  для анонимной) и парсер-хелпер (`Parser/action_helpers.c`,
+  `Parser/pegen.h`). AST/codegen не трогает: десахарит в `FunctionDef` +
+  `Return(MatchExpr)`; no-match наследует R8.
 - `funny-python-line-continuation` — depends-on: токенизатор
   (`Parser/lexer/lexer.c`), грамматика (`funnypy_assign_stmt`). Рантайм и
   `codegen.c` не трогает.

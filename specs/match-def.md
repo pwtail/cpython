@@ -9,10 +9,13 @@ parent: funny-python-architecture
 ## Responsibility
 
 Определение функции, за которым следуют `case`-кейсы: диспатч по значениям
-аргументов (функциональные клаузы / multiple dispatch, вдохновлено Gleam).
-Покрывает требование R9 из `funny-python-goal`.
+позиционных аргументов (функциональные клаузы / multiple dispatch,
+вдохновлено Gleam). Две формы: именованная `match def name(…)` и анонимная
+`match def(…)`. Покрывает требование R9 из `funny-python-goal`.
 
 ## Syntax
+
+Именованная форма:
 
 ```python
 match def mufun(x: mytype, y, z):
@@ -26,26 +29,51 @@ mufun([], 0, 1)          # второй case
 mufun([1], 0, 1)         # MatchError
 ```
 
+Анонимная форма — в statement-позициях R2 (см. `funny-python-lambda`):
+
+```python
+f = match def(x, y):       # 1. RHS присваивания (в т.ч. на следующей строке)
+    case [head, *rest], y:
+        ...
+    case [], y:
+        ...
+
+def apply(g, x):
+    return match def(y):   # 2. значение return
+        case 0:
+            g(x)
+        case _:
+            g(x + y)
+
+match def(x):              # 3. выражение-инструкция
+    case n:
+        print(n)
+
+run(..) match def():       # 4. филлер плейсхолдера `..` (R4)
+    case _:
+        print("Running")
+```
+
 Функция вызывается как обычная. Параметры — только позиционные (можно `/`),
 с аннотациями и defaults; `*args`, `**kwargs` и keyword-only отвергаются
 SyntaxError (у них нет subject фиксированной арности). Ноль параметров —
-ошибка. Декораторы, `async`, type-параметры и анонимная форма не поддержаны.
+ошибка. Декораторы, `async`, type-параметры и expression-позиции анонимной
+формы не поддержаны.
 
 ## Semantics
 
 Десахаринг:
 
 ```python
-match def f(p1, p2, …):
+match def f(p1, p2, …):        # именованная
+match def(p1, p2, …):          # анонимная
     case <pat>: <body>
-    …
 ```
 эквивалентно
 ```python
-def f(p1, p2, …):
+def f(p1, p2, …):              # <lambda> — для анонимной формы
     return match (p1, p2, …):
         case <pat>: <body>
-        …
 ```
 
 - **Subject** — кортеж позиционных параметров в порядке объявления. Один
@@ -58,25 +86,35 @@ def f(p1, p2, …):
 - **Возврат** — `Return(MatchExpr(...))`: значение trailing-выражения
   сработавшего кейса, no-match → `MatchError` (R8). Синтетический `case _`
   не нужен.
+- **`__name__`:** в присваивании — имя цели (`f.__name__ == 'f'`), в остальных
+  позициях — `<lambda>`.
 
 ## Boundary
 
-- **Десахаринг на уровне парсера**, как у лямбд. Новых AST-узлов нет:
-  переиспользуются `FunctionDef`, `Return`, `MatchExpr`. `Parser/Python.asdl`,
+- **Десахаринг на уровне парсера**. Новых AST-узлов нет: переиспользуются
+  `FunctionDef`, `Return`, `MatchExpr`. `Parser/Python.asdl`,
   `Python/codegen.c` и рантайм не тронуты.
-- **Грамматика** (`Grammar/python.gram`): правило `funnypy_match_def`
-  (`"match" 'def' NAME '(' params ')' ['->' expression] ':' NEWLINE INDENT
-  case_block+ DEDENT`), подключено в `compound_stmt` альтернативой
-  `&("match" 'def')` **перед** `match_stmt`. Конфликтов нет: `def` не начинает
-  паттерн (`match_assign`), `def NAME` не парсится как `def_expr` (тот требует
-  `def (`). `"match"` — мягкое ключевое слово (двойные кавычки).
+- **Грамматика** (`Grammar/python.gram`):
+  - именованная форма — правило `funnypy_match_def`, подключено в
+    `compound_stmt` альтернативой `&("match" 'def')` **перед** `match_stmt`;
+  - анонимная форма — альтернатива в общем правиле `funnypy_lambda_def`
+    (`"match" 'def' '(' params ')' ['->' expr] ':' NEWLINE INDENT
+    case_block+ DEDENT`) плюс три альтернативы в `funnypy_lambda_stmt`
+    (присваивание, присваивание с переносом на след. строку, `return`).
+    Через `funnypy_lambda_def` анонимная форма доступна и как филлер стадии
+    пайплайна (`pipe_stage`), и как филлер плейсхолдера `..`.
+  - Конфликты снимает PEG-порядок: именованная форма требует `NAME` и стоит
+    раньше; match-statement на def-expr требует второго `:`
+    (`match def(x): <expr> :`).
 - **Хелпер** `_PyPegen_funnypy_match_def` (`Parser/action_helpers.c`,
-  объявление в `Parser/pegen.h`): валидирует параметры, строит subject
-  (`_PyAST_Name` для одного параметра / `_PyAST_Tuple` через
-  `_PyPegen_seq_append_to_end` иначе), собирает `FunctionDef` с телом
-  `[Return(MatchExpr)]`. Action — одно C-выражение, поэтому логика вынесена
-  в хелпер.
-- **Тесты:** `Lib/test/test_funnypy_match_def.py` (38 тестов: диспатч, возврат,
-  MatchError, guards, defaults, аннотации, рекурсия, метод, class/mapping
-  паттерны, AST-форма, rejection'ы, отсутствие регрессий R3/R4/R6/R7 и
-  `match`-как-имя).
+  объявление в `Parser/pegen.h`): принимает готовый `identifier` (имя цели или
+  `<lambda>`) и локацию через `EXTRA`; валидирует параметры, строит subject и
+  `FunctionDef` с телом `[Return(MatchExpr)]`. Обёртка
+  `_PyPegen_funnypy_match_def_stmt` заворачивает результат в
+  singleton-последовательность с NULL-check: хелпер возвращает NULL после
+  валидационной ошибки, а `_PyPegen_singleton_seq` требует non-NULL.
+  `_PyPegen_funnypy_lambda_return` принимает NULL (возвращает NULL).
+- **Тесты:** `Lib/test/test_funnypy_match_def.py` (58 тестов: обе формы,
+  statement-позиции R2, филлеры пайпа и `..`, defaults/аннотации, guards,
+  рекурсия, метод, class/mapping паттерны, AST-форма, rejection'ы,
+  отсутствие регрессий R3/R4/R6/R7).
