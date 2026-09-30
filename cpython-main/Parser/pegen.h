@@ -325,6 +325,8 @@ asdl_stmt_seq *_PyPegen_funnypy_pipeline(Parser *, expr_ty, asdl_seq *);
 asdl_stmt_seq *_PyPegen_funnypy_pipeline_match(Parser *, expr_ty, asdl_seq *, asdl_match_case_seq *);
 asdl_stmt_seq *_PyPegen_funnypy_pipe_hole_def(Parser *, expr_ty, stmt_ty);
 asdl_stmt_seq *_PyPegen_funnypy_pipe_hole_expr(Parser *, expr_ty, expr_ty);
+asdl_stmt_seq *_PyPegen_funnypy_block_expr(Parser *, expr_ty, stmt_ty);
+asdl_stmt_seq *_PyPegen_funnypy_block_assign(Parser *, expr_ty, expr_ty, stmt_ty);
 asdl_seq *_PyPegen_seq_flatten(Parser *, asdl_seq *);
 expr_ty _PyPegen_join_names_with_dot(Parser *, expr_ty, expr_ty);
 int _PyPegen_seq_count_dots(asdl_seq *);

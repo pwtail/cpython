@@ -2279,8 +2279,12 @@ _PyPegen_funnypy_require_hole_call(Parser *p, expr_ty e)
     return e;
 }
 
-void *
-_PyPegen_funnypy_stage_def(Parser *p, expr_ty e, stmt_ty def)
+/* Resolve a def-filler against the callee `e`: fill the `..` hole of a call
+   with `Name("<lambda>")`, or wrap a bare primary into `e(<lambda>)`.  A call
+   without a placeholder (and any error raised by funnypy_find_hole) returns
+   NULL so the caller backtracks. */
+static expr_ty
+funnypy_fill_def(Parser *p, expr_ty e)
 {
     expr_ty ref = funnypy_lambda_ref(p, e);
     if (ref == NULL) {
@@ -2292,28 +2296,33 @@ _PyPegen_funnypy_stage_def(Parser *p, expr_ty e, stmt_ty def)
             return NULL;  /* error raised, or a call without a placeholder */
         }
         asdl_seq_SET(e->v.Call.args, hole, ref);
+        return e;
     }
-    else {
-        /* Bare stage `..name def(...)`: `name` is a one-argument function,
-           so wrap it into `name(<lambda>)`; the pipeline appends the value. */
-        asdl_seq *only = _PyPegen_singleton_seq(p, ref);
-        if (only == NULL) {
-            return NULL;
-        }
-        e = _PyAST_Call(
-            e, (asdl_expr_seq *)only, NULL,
-            e->lineno, e->col_offset,
-            e->end_lineno, e->end_col_offset, p->arena);
-        if (e == NULL) {
-            return NULL;
-        }
+    /* Bare callee `name def(...)`: `name` takes the lambda as its only
+       argument; a pipeline appends the piped value afterwards. */
+    asdl_seq *only = _PyPegen_singleton_seq(p, ref);
+    if (only == NULL) {
+        return NULL;
+    }
+    return _PyAST_Call(
+        e, (asdl_expr_seq *)only, NULL,
+        e->lineno, e->col_offset,
+        e->end_lineno, e->end_col_offset, p->arena);
+}
+
+void *
+_PyPegen_funnypy_stage_def(Parser *p, expr_ty e, stmt_ty def)
+{
+    expr_ty call = funnypy_fill_def(p, e);
+    if (call == NULL) {
+        return NULL;
     }
     FunnypyPipeStage *stage = _PyArena_Malloc(p->arena, sizeof(FunnypyPipeStage));
     if (stage == NULL) {
         return NULL;
     }
     stage->def_ = def;
-    stage->call = e;
+    stage->call = call;
     return stage;
 }
 
@@ -2478,6 +2487,56 @@ _PyPegen_funnypy_pipe_hole_expr(Parser *p, expr_ty c, expr_ty v)
         return NULL;
     }
     return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, expr_stmt);
+}
+
+/* Funny Python: the def-lambda block of `run def(): …` as an implicit call
+   argument.  The def is hoisted before the statement it feeds. */
+static asdl_stmt_seq *
+funnypy_hoist_def(Parser *p, stmt_ty def, stmt_ty stmt)
+{
+    if (stmt == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *out = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, stmt);
+    if (out == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_seq_insert_in_front(p, def, (asdl_seq *)out);
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_block_expr(Parser *p, expr_ty e, stmt_ty def)
+{
+    expr_ty call = funnypy_fill_def(p, e);
+    if (call == NULL) {
+        return NULL;
+    }
+    stmt_ty expr_stmt = _PyAST_Expr(
+        call, call->lineno, call->col_offset,
+        call->end_lineno, call->end_col_offset, p->arena);
+    return funnypy_hoist_def(p, def, expr_stmt);
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_block_assign(Parser *p, expr_ty target, expr_ty e, stmt_ty def)
+{
+    expr_ty call = funnypy_fill_def(p, e);
+    if (call == NULL) {
+        return NULL;
+    }
+    expr_ty store = _PyPegen_set_expr_context(p, target, Store);
+    if (store == NULL) {
+        return NULL;
+    }
+    asdl_seq *targets = _PyPegen_singleton_seq(p, store);
+    if (targets == NULL) {
+        return NULL;
+    }
+    stmt_ty assign = _PyAST_Assign(
+        (asdl_expr_seq *)targets, call, NULL,
+        target->lineno, target->col_offset,
+        call->end_lineno, call->end_col_offset, p->arena);
+    return funnypy_hoist_def(p, def, assign);
 }
 
 asdl_stmt_seq*

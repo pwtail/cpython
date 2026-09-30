@@ -105,6 +105,7 @@ statement[asdl_stmt_seq*]:
                         ) }
     | a[asdl_stmt_seq*]=funnypy_lambda_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=funnypy_pipe_stmt { _PyPegen_register_stmts(p, a) }
+    | a[asdl_stmt_seq*]=funnypy_block_arg_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=simple_stmts { a }
     | a=match_expr_stmt { _PyPegen_register_stmts(p,
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
@@ -186,6 +187,16 @@ funnypy_pipe_stmt[asdl_stmt_seq*]:
         _PyPegen_funnypy_pipe_hole_def(p, c, f) }
     | c=hole_call_expr v=star_expressions NEWLINE {
         _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
+
+# Funny Python: a def-lambda block as an implicit call argument — a bare
+# reference (or a `(..)` call) on the SAME line as `def`: `run def(): …`.
+# A call without a placeholder (`f(a) def(): …`) is rejected, as in a stage;
+# `run` and a next-line `def(): …` stay two separate statements.
+funnypy_block_arg_stmt[asdl_stmt_seq*]:
+    | n=NAME '=' e=primary &'def' f=funnypy_lambda_def {
+        _PyPegen_funnypy_block_assign(p, n, e, f) }
+    | e=primary &'def' f=funnypy_lambda_def {
+        _PyPegen_funnypy_block_expr(p, e, f) }
 
 # NOTE: assignment MUST precede expression, else parsing a simple assignment
 # will throw a SyntaxError.
