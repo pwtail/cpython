@@ -359,14 +359,15 @@ struct _stmt {
 };
 
 enum _expr_kind {BoolOp_kind=1, NamedExpr_kind=2, BinOp_kind=3, UnaryOp_kind=4,
-                  Lambda_kind=5, MatchExpr_kind=6, IfExp_kind=7, Dict_kind=8,
-                  Set_kind=9, ListComp_kind=10, SetComp_kind=11,
-                  DictComp_kind=12, GeneratorExp_kind=13, Await_kind=14,
-                  Yield_kind=15, YieldFrom_kind=16, Compare_kind=17,
-                  Call_kind=18, FormattedValue_kind=19, Interpolation_kind=20,
-                  JoinedStr_kind=21, TemplateStr_kind=22, Constant_kind=23,
-                  Attribute_kind=24, Subscript_kind=25, Starred_kind=26,
-                  Name_kind=27, List_kind=28, Tuple_kind=29, Slice_kind=30};
+                  Lambda_kind=5, MatchExpr_kind=6, IfExpr_kind=7,
+                  WithExpr_kind=8, TryExpr_kind=9, IfExp_kind=10, Dict_kind=11,
+                  Set_kind=12, ListComp_kind=13, SetComp_kind=14,
+                  DictComp_kind=15, GeneratorExp_kind=16, Await_kind=17,
+                  Yield_kind=18, YieldFrom_kind=19, Compare_kind=20,
+                  Call_kind=21, FormattedValue_kind=22, Interpolation_kind=23,
+                  JoinedStr_kind=24, TemplateStr_kind=25, Constant_kind=26,
+                  Attribute_kind=27, Subscript_kind=28, Starred_kind=29,
+                  Name_kind=30, List_kind=31, Tuple_kind=32, Slice_kind=33};
 struct _expr {
     enum _expr_kind kind;
     union {
@@ -400,6 +401,24 @@ struct _expr {
             expr_ty subject;
             asdl_match_case_seq *cases;
         } MatchExpr;
+
+        struct {
+            expr_ty test;
+            asdl_stmt_seq *body;
+            asdl_stmt_seq *orelse;
+        } IfExpr;
+
+        struct {
+            asdl_withitem_seq *items;
+            asdl_stmt_seq *body;
+        } WithExpr;
+
+        struct {
+            asdl_stmt_seq *body;
+            asdl_excepthandler_seq *handlers;
+            asdl_stmt_seq *orelse;
+            asdl_stmt_seq *finalbody;
+        } TryExpr;
 
         struct {
             expr_ty test;
@@ -808,6 +827,16 @@ expr_ty _PyAST_Lambda(arguments_ty args, expr_ty body, int lineno, int
 expr_ty _PyAST_MatchExpr(expr_ty subject, asdl_match_case_seq * cases, int
                          lineno, int col_offset, int end_lineno, int
                          end_col_offset, PyArena *arena);
+expr_ty _PyAST_IfExpr(expr_ty test, asdl_stmt_seq * body, asdl_stmt_seq *
+                      orelse, int lineno, int col_offset, int end_lineno, int
+                      end_col_offset, PyArena *arena);
+expr_ty _PyAST_WithExpr(asdl_withitem_seq * items, asdl_stmt_seq * body, int
+                        lineno, int col_offset, int end_lineno, int
+                        end_col_offset, PyArena *arena);
+expr_ty _PyAST_TryExpr(asdl_stmt_seq * body, asdl_excepthandler_seq * handlers,
+                       asdl_stmt_seq * orelse, asdl_stmt_seq * finalbody, int
+                       lineno, int col_offset, int end_lineno, int
+                       end_col_offset, PyArena *arena);
 expr_ty _PyAST_IfExp(expr_ty test, expr_ty body, expr_ty orelse, int lineno,
                      int col_offset, int end_lineno, int end_col_offset,
                      PyArena *arena);

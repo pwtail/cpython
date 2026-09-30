@@ -1060,7 +1060,12 @@ class DirectoryTestCase(ASTTestCase):
             item.resolve()
             for directory in cls.test_directories
             for item in directory.glob("*.py")
-            if not item.name.startswith("bad")
+            # funnypy: the funnypy test files exercise syntax whose AST is out
+            # of scope for ast.unparse (block expressions, match expressions
+            # and synthetic "<lambda>" function names), so they are not a
+            # valid roundtrip corpus.  See specs/if-with-try-expression.md and
+            # specs/match-expression.md.
+            if not item.name.startswith(("bad", "test_funnypy"))
         ]
 
         # Test limited subset of files unless the 'cpu' resource is specified.

@@ -86,6 +86,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Gt_singleton);
     Py_CLEAR(state->Gt_type);
     Py_CLEAR(state->IfExp_type);
+    Py_CLEAR(state->IfExpr_type);
     Py_CLEAR(state->If_type);
     Py_CLEAR(state->ImportFrom_type);
     Py_CLEAR(state->Import_type);
@@ -157,6 +158,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->Sub_type);
     Py_CLEAR(state->Subscript_type);
     Py_CLEAR(state->TemplateStr_type);
+    Py_CLEAR(state->TryExpr_type);
     Py_CLEAR(state->TryStar_type);
     Py_CLEAR(state->Try_type);
     Py_CLEAR(state->Tuple_type);
@@ -170,6 +172,7 @@ void _PyAST_Fini(PyInterpreterState *interp)
     Py_CLEAR(state->USub_type);
     Py_CLEAR(state->UnaryOp_type);
     Py_CLEAR(state->While_type);
+    Py_CLEAR(state->WithExpr_type);
     Py_CLEAR(state->With_type);
     Py_CLEAR(state->YieldFrom_type);
     Py_CLEAR(state->Yield_type);
@@ -579,6 +582,21 @@ static const char * const Lambda_fields[]={
 static const char * const MatchExpr_fields[]={
     "subject",
     "cases",
+};
+static const char * const IfExpr_fields[]={
+    "test",
+    "body",
+    "orelse",
+};
+static const char * const WithExpr_fields[]={
+    "items",
+    "body",
+};
+static const char * const TryExpr_fields[]={
+    "body",
+    "handlers",
+    "orelse",
+    "finalbody",
 };
 static const char * const IfExp_fields[]={
     "test",
@@ -2730,6 +2748,182 @@ add_ast_annotations(struct ast_state *state)
         return 0;
     }
     Py_DECREF(MatchExpr_annotations);
+    PyObject *IfExpr_annotations = PyDict_New();
+    if (!IfExpr_annotations) return 0;
+    {
+        PyObject *type = state->expr_type;
+        Py_INCREF(type);
+        cond = PyDict_SetItemString(IfExpr_annotations, "test", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(IfExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(IfExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(IfExpr_annotations, "body", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(IfExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(IfExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(IfExpr_annotations, "orelse", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(IfExpr_annotations);
+            return 0;
+        }
+    }
+    cond = PyObject_SetAttrString(state->IfExpr_type, "_field_types",
+                                  IfExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(IfExpr_annotations);
+        return 0;
+    }
+    cond = PyObject_SetAttrString(state->IfExpr_type, "__annotations__",
+                                  IfExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(IfExpr_annotations);
+        return 0;
+    }
+    Py_DECREF(IfExpr_annotations);
+    PyObject *WithExpr_annotations = PyDict_New();
+    if (!WithExpr_annotations) return 0;
+    {
+        PyObject *type = state->withitem_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(WithExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(WithExpr_annotations, "items", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(WithExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(WithExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(WithExpr_annotations, "body", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(WithExpr_annotations);
+            return 0;
+        }
+    }
+    cond = PyObject_SetAttrString(state->WithExpr_type, "_field_types",
+                                  WithExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(WithExpr_annotations);
+        return 0;
+    }
+    cond = PyObject_SetAttrString(state->WithExpr_type, "__annotations__",
+                                  WithExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(WithExpr_annotations);
+        return 0;
+    }
+    Py_DECREF(WithExpr_annotations);
+    PyObject *TryExpr_annotations = PyDict_New();
+    if (!TryExpr_annotations) return 0;
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(TryExpr_annotations, "body", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->excepthandler_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(TryExpr_annotations, "handlers", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(TryExpr_annotations, "orelse", type) == 0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+    }
+    {
+        PyObject *type = state->stmt_type;
+        type = Py_GenericAlias((PyObject *)&PyList_Type, type);
+        cond = type != NULL;
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+        cond = PyDict_SetItemString(TryExpr_annotations, "finalbody", type) ==
+                                    0;
+        Py_DECREF(type);
+        if (!cond) {
+            Py_DECREF(TryExpr_annotations);
+            return 0;
+        }
+    }
+    cond = PyObject_SetAttrString(state->TryExpr_type, "_field_types",
+                                  TryExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(TryExpr_annotations);
+        return 0;
+    }
+    cond = PyObject_SetAttrString(state->TryExpr_type, "__annotations__",
+                                  TryExpr_annotations) == 0;
+    if (!cond) {
+        Py_DECREF(TryExpr_annotations);
+        return 0;
+    }
+    Py_DECREF(TryExpr_annotations);
     PyObject *IfExp_annotations = PyDict_New();
     if (!IfExp_annotations) return 0;
     {
@@ -6391,6 +6585,9 @@ init_types(void *arg)
         "     | UnaryOp(unaryop op, expr operand)\n"
         "     | Lambda(arguments args, expr body)\n"
         "     | MatchExpr(expr subject, match_case* cases)\n"
+        "     | IfExpr(expr test, stmt* body, stmt* orelse)\n"
+        "     | WithExpr(withitem* items, stmt* body)\n"
+        "     | TryExpr(stmt* body, excepthandler* handlers, stmt* orelse, stmt* finalbody)\n"
         "     | IfExp(expr test, expr body, expr orelse)\n"
         "     | Dict(expr?* keys, expr* values)\n"
         "     | Set(expr* elts)\n"
@@ -6448,6 +6645,18 @@ init_types(void *arg)
                                       MatchExpr_fields, 2,
         "MatchExpr(expr subject, match_case* cases)");
     if (!state->MatchExpr_type) return -1;
+    state->IfExpr_type = make_type(state, "IfExpr", state->expr_type,
+                                   IfExpr_fields, 3,
+        "IfExpr(expr test, stmt* body, stmt* orelse)");
+    if (!state->IfExpr_type) return -1;
+    state->WithExpr_type = make_type(state, "WithExpr", state->expr_type,
+                                     WithExpr_fields, 2,
+        "WithExpr(withitem* items, stmt* body)");
+    if (!state->WithExpr_type) return -1;
+    state->TryExpr_type = make_type(state, "TryExpr", state->expr_type,
+                                    TryExpr_fields, 4,
+        "TryExpr(stmt* body, excepthandler* handlers, stmt* orelse, stmt* finalbody)");
+    if (!state->TryExpr_type) return -1;
     state->IfExp_type = make_type(state, "IfExp", state->expr_type,
                                   IfExp_fields, 3,
         "IfExp(expr test, expr body, expr orelse)");
@@ -7920,6 +8129,72 @@ _PyAST_MatchExpr(expr_ty subject, asdl_match_case_seq * cases, int lineno, int
     p->kind = MatchExpr_kind;
     p->v.MatchExpr.subject = subject;
     p->v.MatchExpr.cases = cases;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_IfExpr(expr_ty test, asdl_stmt_seq * body, asdl_stmt_seq * orelse, int
+              lineno, int col_offset, int end_lineno, int end_col_offset,
+              PyArena *arena)
+{
+    expr_ty p;
+    if (!test) {
+        PyErr_SetString(PyExc_ValueError,
+                        "field 'test' is required for IfExpr");
+        return NULL;
+    }
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = IfExpr_kind;
+    p->v.IfExpr.test = test;
+    p->v.IfExpr.body = body;
+    p->v.IfExpr.orelse = orelse;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_WithExpr(asdl_withitem_seq * items, asdl_stmt_seq * body, int lineno,
+                int col_offset, int end_lineno, int end_col_offset, PyArena
+                *arena)
+{
+    expr_ty p;
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = WithExpr_kind;
+    p->v.WithExpr.items = items;
+    p->v.WithExpr.body = body;
+    p->lineno = lineno;
+    p->col_offset = col_offset;
+    p->end_lineno = end_lineno;
+    p->end_col_offset = end_col_offset;
+    return p;
+}
+
+expr_ty
+_PyAST_TryExpr(asdl_stmt_seq * body, asdl_excepthandler_seq * handlers,
+               asdl_stmt_seq * orelse, asdl_stmt_seq * finalbody, int lineno,
+               int col_offset, int end_lineno, int end_col_offset, PyArena
+               *arena)
+{
+    expr_ty p;
+    p = (expr_ty)_PyArena_Malloc(arena, sizeof(*p));
+    if (!p)
+        return NULL;
+    p->kind = TryExpr_kind;
+    p->v.TryExpr.body = body;
+    p->v.TryExpr.handlers = handlers;
+    p->v.TryExpr.orelse = orelse;
+    p->v.TryExpr.finalbody = finalbody;
     p->lineno = lineno;
     p->col_offset = col_offset;
     p->end_lineno = end_lineno;
@@ -9724,6 +9999,72 @@ ast2obj_expr(struct ast_state *state, void* _o)
                              ast2obj_match_case);
         if (!value) goto failed;
         if (PyObject_SetAttr(result, state->cases, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case IfExpr_kind:
+        tp = (PyTypeObject *)state->IfExpr_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_expr(state, o->v.IfExpr.test);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->test, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.IfExpr.body, ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.IfExpr.orelse,
+                             ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->orelse, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case WithExpr_kind:
+        tp = (PyTypeObject *)state->WithExpr_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_list(state, (asdl_seq*)o->v.WithExpr.items,
+                             ast2obj_withitem);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->items, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.WithExpr.body,
+                             ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        break;
+    case TryExpr_kind:
+        tp = (PyTypeObject *)state->TryExpr_type;
+        result = PyType_GenericNew(tp, NULL, NULL);
+        if (!result) goto failed;
+        value = ast2obj_list(state, (asdl_seq*)o->v.TryExpr.body, ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->body, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.TryExpr.handlers,
+                             ast2obj_excepthandler);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->handlers, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.TryExpr.orelse,
+                             ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->orelse, value) == -1)
+            goto failed;
+        Py_DECREF(value);
+        value = ast2obj_list(state, (asdl_seq*)o->v.TryExpr.finalbody,
+                             ast2obj_stmt);
+        if (!value) goto failed;
+        if (PyObject_SetAttr(result, state->finalbody, value) == -1)
             goto failed;
         Py_DECREF(value);
         break;
@@ -14325,6 +14666,372 @@ obj2ast_expr(struct ast_state *state, PyObject* obj, expr_ty* out, PyArena*
         if (*out == NULL) goto failed;
         return 0;
     }
+    tp = state->IfExpr_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return -1;
+    }
+    if (isinstance) {
+        expr_ty test;
+        asdl_stmt_seq* body;
+        asdl_stmt_seq* orelse;
+
+        if (PyObject_GetOptionalAttr(obj, state->test, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            PyErr_SetString(PyExc_TypeError, "required field \"test\" missing from IfExpr");
+            return -1;
+        }
+        else {
+            int res;
+            if (_Py_EnterRecursiveCall(" while traversing 'IfExpr' node")) {
+                goto failed;
+            }
+            res = obj2ast_expr(state, tmp, &test, arena);
+            _Py_LeaveRecursiveCall();
+            if (res != 0) goto failed;
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->body, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "IfExpr field \"body\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            body = _Py_asdl_stmt_seq_new(len, arena);
+            if (body == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'IfExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "IfExpr field \"body\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(body, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->orelse, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "IfExpr field \"orelse\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            orelse = _Py_asdl_stmt_seq_new(len, arena);
+            if (orelse == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'IfExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "IfExpr field \"orelse\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(orelse, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_IfExpr(test, body, orelse, lineno, col_offset,
+                             end_lineno, end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->WithExpr_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return -1;
+    }
+    if (isinstance) {
+        asdl_withitem_seq* items;
+        asdl_stmt_seq* body;
+
+        if (PyObject_GetOptionalAttr(obj, state->items, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "WithExpr field \"items\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            items = _Py_asdl_withitem_seq_new(len, arena);
+            if (items == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                withitem_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'WithExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_withitem(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "WithExpr field \"items\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(items, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->body, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "WithExpr field \"body\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            body = _Py_asdl_stmt_seq_new(len, arena);
+            if (body == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'WithExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "WithExpr field \"body\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(body, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_WithExpr(items, body, lineno, col_offset, end_lineno,
+                               end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
+    tp = state->TryExpr_type;
+    isinstance = PyObject_IsInstance(obj, tp);
+    if (isinstance == -1) {
+        return -1;
+    }
+    if (isinstance) {
+        asdl_stmt_seq* body;
+        asdl_excepthandler_seq* handlers;
+        asdl_stmt_seq* orelse;
+        asdl_stmt_seq* finalbody;
+
+        if (PyObject_GetOptionalAttr(obj, state->body, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "TryExpr field \"body\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            body = _Py_asdl_stmt_seq_new(len, arena);
+            if (body == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'TryExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "TryExpr field \"body\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(body, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->handlers, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "TryExpr field \"handlers\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            handlers = _Py_asdl_excepthandler_seq_new(len, arena);
+            if (handlers == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                excepthandler_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'TryExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_excepthandler(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "TryExpr field \"handlers\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(handlers, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->orelse, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "TryExpr field \"orelse\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            orelse = _Py_asdl_stmt_seq_new(len, arena);
+            if (orelse == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'TryExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "TryExpr field \"orelse\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(orelse, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        if (PyObject_GetOptionalAttr(obj, state->finalbody, &tmp) < 0) {
+            return -1;
+        }
+        if (tmp == NULL) {
+            tmp = PyList_New(0);
+            if (tmp == NULL) {
+                return -1;
+            }
+        }
+        {
+            int res;
+            Py_ssize_t len;
+            Py_ssize_t i;
+            if (!PyList_Check(tmp)) {
+                PyErr_Format(PyExc_TypeError, "TryExpr field \"finalbody\" must be a list, not a %.200s", _PyType_Name(Py_TYPE(tmp)));
+                goto failed;
+            }
+            len = PyList_GET_SIZE(tmp);
+            finalbody = _Py_asdl_stmt_seq_new(len, arena);
+            if (finalbody == NULL) goto failed;
+            for (i = 0; i < len; i++) {
+                stmt_ty val;
+                PyObject *tmp2 = Py_NewRef(PyList_GET_ITEM(tmp, i));
+                if (_Py_EnterRecursiveCall(" while traversing 'TryExpr' node")) {
+                    goto failed;
+                }
+                res = obj2ast_stmt(state, tmp2, &val, arena);
+                _Py_LeaveRecursiveCall();
+                Py_DECREF(tmp2);
+                if (res != 0) goto failed;
+                if (len != PyList_GET_SIZE(tmp)) {
+                    PyErr_SetString(PyExc_RuntimeError, "TryExpr field \"finalbody\" changed size during iteration");
+                    goto failed;
+                }
+                asdl_seq_SET(finalbody, i, val);
+            }
+            Py_CLEAR(tmp);
+        }
+        *out = _PyAST_TryExpr(body, handlers, orelse, finalbody, lineno,
+                              col_offset, end_lineno, end_col_offset, arena);
+        if (*out == NULL) goto failed;
+        return 0;
+    }
     tp = state->IfExp_type;
     isinstance = PyObject_IsInstance(obj, tp);
     if (isinstance == -1) {
@@ -18318,6 +19025,15 @@ astmodule_exec(PyObject *m)
         return -1;
     }
     if (PyModule_AddObjectRef(m, "MatchExpr", state->MatchExpr_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "IfExpr", state->IfExpr_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "WithExpr", state->WithExpr_type) < 0) {
+        return -1;
+    }
+    if (PyModule_AddObjectRef(m, "TryExpr", state->TryExpr_type) < 0) {
         return -1;
     }
     if (PyModule_AddObjectRef(m, "IfExp", state->IfExp_type) < 0) {

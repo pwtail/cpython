@@ -69,6 +69,7 @@ struct ast_state {
     PyObject *Gt_singleton;
     PyObject *Gt_type;
     PyObject *IfExp_type;
+    PyObject *IfExpr_type;
     PyObject *If_type;
     PyObject *ImportFrom_type;
     PyObject *Import_type;
@@ -140,6 +141,7 @@ struct ast_state {
     PyObject *Sub_type;
     PyObject *Subscript_type;
     PyObject *TemplateStr_type;
+    PyObject *TryExpr_type;
     PyObject *TryStar_type;
     PyObject *Try_type;
     PyObject *Tuple_type;
@@ -153,6 +155,7 @@ struct ast_state {
     PyObject *USub_type;
     PyObject *UnaryOp_type;
     PyObject *While_type;
+    PyObject *WithExpr_type;
     PyObject *With_type;
     PyObject *YieldFrom_type;
     PyObject *Yield_type;

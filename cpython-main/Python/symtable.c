@@ -2525,6 +2525,33 @@ symtable_visit_expr(struct symtable *st, expr_ty e)
         LEAVE_CONDITIONAL_BLOCK(st);
         break;
     }
+    case IfExpr_kind: {
+        VISIT(st, expr, e->v.IfExpr.test);
+        ENTER_CONDITIONAL_BLOCK(st);
+        VISIT_SEQ(st, stmt, e->v.IfExpr.body);
+        if (e->v.IfExpr.orelse)
+            VISIT_SEQ(st, stmt, e->v.IfExpr.orelse);
+        LEAVE_CONDITIONAL_BLOCK(st);
+        break;
+    }
+    case WithExpr_kind: {
+        ENTER_CONDITIONAL_BLOCK(st);
+        VISIT_SEQ(st, withitem, e->v.WithExpr.items);
+        VISIT_SEQ(st, stmt, e->v.WithExpr.body);
+        LEAVE_CONDITIONAL_BLOCK(st);
+        break;
+    }
+    case TryExpr_kind: {
+        ENTER_CONDITIONAL_BLOCK(st);
+        ENTER_TRY_BLOCK(st);
+        VISIT_SEQ(st, stmt, e->v.TryExpr.body);
+        VISIT_SEQ(st, excepthandler, e->v.TryExpr.handlers);
+        VISIT_SEQ(st, stmt, e->v.TryExpr.orelse);
+        VISIT_SEQ(st, stmt, e->v.TryExpr.finalbody);
+        LEAVE_TRY_BLOCK(st);
+        LEAVE_CONDITIONAL_BLOCK(st);
+        break;
+    }
     case IfExp_kind:
         VISIT(st, expr, e->v.IfExp.test);
         VISIT(st, expr, e->v.IfExp.body);

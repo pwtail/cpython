@@ -201,6 +201,10 @@ static int codegen_visit_stmt(compiler *, stmt_ty);
 static int codegen_visit_keyword(compiler *, keyword_ty);
 static int codegen_visit_expr(compiler *, expr_ty);
 static int codegen_match_expr(compiler *, expr_ty);
+static int codegen_block_value(compiler *, asdl_stmt_seq *);
+static int codegen_if_expr(compiler *, expr_ty);
+static int codegen_with_expr(compiler *, expr_ty);
+static int codegen_with_expr_inner(compiler *, expr_ty, int);
 static int codegen_augassign(compiler *, stmt_ty);
 static int codegen_annassign(compiler *, stmt_ty);
 static int codegen_subscript(compiler *, expr_ty);
@@ -227,6 +231,9 @@ static int codegen_call_helper(compiler *c, location loc,
                                asdl_keyword_seq *keywords);
 static int codegen_try_except(compiler *, stmt_ty);
 static int codegen_try_star_except(compiler *, stmt_ty);
+static int codegen_try_expr(compiler *, expr_ty);
+static int codegen_try_expr_except(compiler *, expr_ty);
+static int codegen_try_expr_finally(compiler *, expr_ty);
 
 typedef enum {
     ITERABLE_IN_LOCAL = 0,
@@ -2152,6 +2159,32 @@ codegen_if(compiler *c, stmt_ty s)
     return SUCCESS;
 }
 
+/* funnypy: compile an if expression, leaving the value of the taken branch's
+   trailing expression (or None when no branch is taken) on the stack. */
+static int
+codegen_if_expr(compiler *c, expr_ty e)
+{
+    assert(e->kind == IfExpr_kind);
+    NEW_JUMP_TARGET_LABEL(c, end);
+    NEW_JUMP_TARGET_LABEL(c, orelse);
+    RETURN_IF_ERROR(
+        codegen_jump_if(c, LOC(e), e->v.IfExpr.test, orelse, 0));
+
+    RETURN_IF_ERROR(codegen_block_value(c, e->v.IfExpr.body));
+    ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, end);
+
+    USE_LABEL(c, orelse);
+    if (asdl_seq_LEN(e->v.IfExpr.orelse)) {
+        RETURN_IF_ERROR(codegen_block_value(c, e->v.IfExpr.orelse));
+    }
+    else {
+        ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+    }
+
+    USE_LABEL(c, end);
+    return SUCCESS;
+}
+
 static int
 codegen_for(compiler *c, stmt_ty s)
 {
@@ -2862,6 +2895,207 @@ codegen_try(compiler *c, stmt_ty s) {
         return codegen_try_finally(c, s);
     else
         return codegen_try_except(c, s);
+}
+
+/* funnypy: the except part of a try expression.  Every path that reaches
+   `end` leaves exactly one value: the trailing expression of the try body
+   (or of `orelse`, which supersedes it) on success, and of the matching
+   handler body on an exception.  Mirrors codegen_try_except; the SWAP before
+   POP_EXCEPT keeps the body value below the previous exception. */
+static int
+codegen_try_expr_except(compiler *c, expr_ty e)
+{
+    location loc = LOC(e);
+    Py_ssize_t i, n;
+
+    NEW_JUMP_TARGET_LABEL(c, body);
+    NEW_JUMP_TARGET_LABEL(c, except);
+    NEW_JUMP_TARGET_LABEL(c, end);
+    NEW_JUMP_TARGET_LABEL(c, cleanup);
+
+    ADDOP_JUMP(c, loc, SETUP_FINALLY, except);
+
+    USE_LABEL(c, body);
+    RETURN_IF_ERROR(
+        _PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_TRY_EXCEPT, body, NO_LABEL, NULL));
+    RETURN_IF_ERROR(codegen_block_value(c, e->v.TryExpr.body));
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_TRY_EXCEPT, body);
+    ADDOP(c, NO_LOCATION, POP_BLOCK);
+    if (e->v.TryExpr.orelse && asdl_seq_LEN(e->v.TryExpr.orelse)) {
+        /* The else block supersedes the try body value. */
+        ADDOP(c, NO_LOCATION, POP_TOP);
+        RETURN_IF_ERROR(codegen_block_value(c, e->v.TryExpr.orelse));
+    }
+    ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, end);
+    n = asdl_seq_LEN(e->v.TryExpr.handlers);
+
+    USE_LABEL(c, except);
+
+    ADDOP_JUMP(c, NO_LOCATION, SETUP_CLEANUP, cleanup);
+    ADDOP(c, NO_LOCATION, PUSH_EXC_INFO);
+
+    /* Runtime will push a block here, so we need to account for that */
+    RETURN_IF_ERROR(
+        _PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_EXCEPTION_HANDLER,
+                              NO_LABEL, NO_LABEL, NULL));
+
+    for (i = 0; i < n; i++) {
+        excepthandler_ty handler = (excepthandler_ty)asdl_seq_GET(
+            e->v.TryExpr.handlers, i);
+        location hloc = LOC(handler);
+        if (!handler->v.ExceptHandler.type && i < n-1) {
+            return _PyCompile_Error(c, hloc, "default 'except:' must be last");
+        }
+        NEW_JUMP_TARGET_LABEL(c, next_except);
+        except = next_except;
+        if (handler->v.ExceptHandler.type) {
+            VISIT(c, expr, handler->v.ExceptHandler.type);
+            ADDOP(c, hloc, CHECK_EXC_MATCH);
+            ADDOP_JUMP(c, hloc, POP_JUMP_IF_FALSE, except);
+        }
+        if (handler->v.ExceptHandler.name) {
+            NEW_JUMP_TARGET_LABEL(c, cleanup_end);
+            NEW_JUMP_TARGET_LABEL(c, cleanup_body);
+
+            RETURN_IF_ERROR(
+                codegen_nameop(c, hloc, handler->v.ExceptHandler.name, Store));
+
+            /* second try: */
+            ADDOP_JUMP(c, hloc, SETUP_CLEANUP, cleanup_end);
+
+            USE_LABEL(c, cleanup_body);
+            RETURN_IF_ERROR(
+                _PyCompile_PushFBlock(c, hloc, COMPILE_FBLOCK_HANDLER_CLEANUP, cleanup_body,
+                                      NO_LABEL, handler->v.ExceptHandler.name));
+
+            /* second # body */
+            RETURN_IF_ERROR(codegen_block_value(c, handler->v.ExceptHandler.body));
+            _PyCompile_PopFBlock(c, COMPILE_FBLOCK_HANDLER_CLEANUP, cleanup_body);
+            /* name = None; del name; # Mark as artificial */
+            ADDOP(c, NO_LOCATION, POP_BLOCK);
+            ADDOP(c, NO_LOCATION, POP_BLOCK);
+            /* Keep the body value below the previous exception so that
+               POP_EXCEPT pops the latter. */
+            ADDOP_I(c, NO_LOCATION, SWAP, 2);
+            ADDOP(c, NO_LOCATION, POP_EXCEPT);
+            ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+            RETURN_IF_ERROR(
+                codegen_nameop(c, NO_LOCATION, handler->v.ExceptHandler.name, Store));
+            RETURN_IF_ERROR(
+                codegen_nameop(c, NO_LOCATION, handler->v.ExceptHandler.name, Del));
+            ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, end);
+
+            /* except: */
+            USE_LABEL(c, cleanup_end);
+
+            /* name = None; del name; # artificial */
+            ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+            RETURN_IF_ERROR(
+                codegen_nameop(c, NO_LOCATION, handler->v.ExceptHandler.name, Store));
+            RETURN_IF_ERROR(
+                codegen_nameop(c, NO_LOCATION, handler->v.ExceptHandler.name, Del));
+
+            ADDOP_I(c, NO_LOCATION, RERAISE, 1);
+        }
+        else {
+            NEW_JUMP_TARGET_LABEL(c, cleanup_body);
+
+            ADDOP(c, hloc, POP_TOP); /* exc_value */
+
+            USE_LABEL(c, cleanup_body);
+            RETURN_IF_ERROR(
+                _PyCompile_PushFBlock(c, hloc, COMPILE_FBLOCK_HANDLER_CLEANUP, cleanup_body,
+                                      NO_LABEL, NULL));
+
+            RETURN_IF_ERROR(codegen_block_value(c, handler->v.ExceptHandler.body));
+            _PyCompile_PopFBlock(c, COMPILE_FBLOCK_HANDLER_CLEANUP, cleanup_body);
+            ADDOP(c, NO_LOCATION, POP_BLOCK);
+            /* Keep the body value below the previous exception. */
+            ADDOP_I(c, NO_LOCATION, SWAP, 2);
+            ADDOP(c, NO_LOCATION, POP_EXCEPT);
+            ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, end);
+        }
+
+        USE_LABEL(c, except);
+    }
+    /* artificial */
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_EXCEPTION_HANDLER, NO_LABEL);
+    ADDOP_I(c, NO_LOCATION, RERAISE, 0);
+
+    USE_LABEL(c, cleanup);
+    POP_EXCEPT_AND_RERAISE(c, NO_LOCATION);
+
+    USE_LABEL(c, end);
+    return SUCCESS;
+}
+
+/* funnypy: the finally part of a try expression (with or without handlers).
+   The trailing expression of the body / matching handler stays on the stack;
+   the finally block runs for its side effects and its own value is discarded.
+   Mirrors codegen_try_finally. */
+static int
+codegen_try_expr_finally(compiler *c, expr_ty e)
+{
+    location loc = LOC(e);
+
+    NEW_JUMP_TARGET_LABEL(c, body);
+    NEW_JUMP_TARGET_LABEL(c, end);
+    NEW_JUMP_TARGET_LABEL(c, exit);
+    NEW_JUMP_TARGET_LABEL(c, cleanup);
+
+    /* `try` block */
+    ADDOP_JUMP(c, loc, SETUP_FINALLY, end);
+
+    USE_LABEL(c, body);
+    RETURN_IF_ERROR(
+        _PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_FINALLY_TRY, body, end,
+                              e->v.TryExpr.finalbody));
+
+    if (e->v.TryExpr.handlers && asdl_seq_LEN(e->v.TryExpr.handlers)) {
+        RETURN_IF_ERROR(codegen_try_expr_except(c, e));
+    }
+    else {
+        RETURN_IF_ERROR(codegen_block_value(c, e->v.TryExpr.body));
+    }
+    ADDOP(c, NO_LOCATION, POP_BLOCK);
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_FINALLY_TRY, body);
+    /* The body value is on the stack while the finally body runs.  If that
+       body returns/breaks/continues, the value must be discarded first, or
+       RETURN_VALUE would fire with a non-empty stack. */
+    RETURN_IF_ERROR(
+        _PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_POP_VALUE, NO_LABEL, NO_LABEL, NULL));
+    VISIT_SEQ(c, stmt, e->v.TryExpr.finalbody);
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_POP_VALUE, NO_LABEL);
+
+    ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, exit);
+    /* `finally` block */
+
+    USE_LABEL(c, end);
+
+    loc = NO_LOCATION;
+    ADDOP_JUMP(c, loc, SETUP_CLEANUP, cleanup);
+    ADDOP(c, loc, PUSH_EXC_INFO);
+    RETURN_IF_ERROR(
+        _PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_FINALLY_END, end, NO_LABEL, NULL));
+    VISIT_SEQ(c, stmt, e->v.TryExpr.finalbody);
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_FINALLY_END, end);
+
+    loc = NO_LOCATION;
+    ADDOP_I(c, loc, RERAISE, 0);
+
+    USE_LABEL(c, cleanup);
+    POP_EXCEPT_AND_RERAISE(c, loc);
+
+    USE_LABEL(c, exit);
+    return SUCCESS;
+}
+
+static int
+codegen_try_expr(compiler *c, expr_ty e) {
+    if (e->v.TryExpr.finalbody && asdl_seq_LEN(e->v.TryExpr.finalbody))
+        return codegen_try_expr_finally(c, e);
+    else
+        return codegen_try_expr_except(c, e);
 }
 
 static int
@@ -5401,6 +5635,116 @@ codegen_with(compiler *c, stmt_ty s)
     return codegen_with_inner(c, s, 0);
 }
 
+/* funnypy: like codegen_with_except_finish, but for a with *expression*:
+   when __exit__ suppresses the exception the body never produced a value, so
+   the expression evaluates to None. */
+static int
+codegen_with_expr_except_finish(compiler *c, jump_target_label cleanup) {
+    NEW_JUMP_TARGET_LABEL(c, suppress);
+    ADDOP(c, NO_LOCATION, TO_BOOL);
+    ADDOP_JUMP(c, NO_LOCATION, POP_JUMP_IF_TRUE, suppress);
+    ADDOP_I(c, NO_LOCATION, RERAISE, 2);
+
+    USE_LABEL(c, suppress);
+    ADDOP(c, NO_LOCATION, POP_TOP); /* exc_value */
+    ADDOP(c, NO_LOCATION, POP_BLOCK);
+    ADDOP(c, NO_LOCATION, POP_EXCEPT);
+    ADDOP(c, NO_LOCATION, POP_TOP);
+    ADDOP(c, NO_LOCATION, POP_TOP);
+    ADDOP(c, NO_LOCATION, POP_TOP);
+    ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+    NEW_JUMP_TARGET_LABEL(c, exit);
+    ADDOP_JUMP(c, NO_LOCATION, JUMP_NO_INTERRUPT, exit);
+
+    USE_LABEL(c, cleanup);
+    POP_EXCEPT_AND_RERAISE(c, NO_LOCATION);
+
+    USE_LABEL(c, exit);
+    return SUCCESS;
+}
+
+/* funnypy: compile a with expression, leaving the value of the body's
+   trailing expression (or None when the exception is suppressed) on the
+   stack.  Mirrors codegen_with_inner. */
+static int
+codegen_with_expr_inner(compiler *c, expr_ty e, int pos)
+{
+    withitem_ty item = asdl_seq_GET(e->v.WithExpr.items, pos);
+
+    assert(e->kind == WithExpr_kind);
+
+    NEW_JUMP_TARGET_LABEL(c, block);
+    NEW_JUMP_TARGET_LABEL(c, final);
+    NEW_JUMP_TARGET_LABEL(c, exit);
+    NEW_JUMP_TARGET_LABEL(c, cleanup);
+
+    /* Evaluate EXPR */
+    VISIT(c, expr, item->context_expr);
+    /* Will push bound __exit__ */
+    location loc = LOC(item->context_expr);
+    ADDOP_I(c, loc, COPY, 1);
+    ADDOP_I(c, loc, LOAD_SPECIAL, SPECIAL___EXIT__);
+    ADDOP_I(c, loc, SWAP, 2);
+    ADDOP_I(c, loc, SWAP, 3);
+    ADDOP_I(c, loc, LOAD_SPECIAL, SPECIAL___ENTER__);
+    ADDOP_I(c, loc, CALL, 0);
+    ADDOP_JUMP(c, loc, SETUP_WITH, final);
+
+    /* SETUP_WITH pushes a finally block. */
+    USE_LABEL(c, block);
+    RETURN_IF_ERROR(_PyCompile_PushFBlock(c, loc, COMPILE_FBLOCK_WITH, block, final, e));
+
+    if (item->optional_vars) {
+        VISIT(c, expr, item->optional_vars);
+    }
+    else {
+    /* Discard result from context.__enter__() */
+        ADDOP(c, loc, POP_TOP);
+    }
+
+    pos++;
+    if (pos == asdl_seq_LEN(e->v.WithExpr.items)) {
+        /* BLOCK code, leaving its trailing expression's value on the stack */
+        RETURN_IF_ERROR(codegen_block_value(c, e->v.WithExpr.body));
+    }
+    else {
+        RETURN_IF_ERROR(codegen_with_expr_inner(c, e, pos));
+    }
+
+    ADDOP(c, NO_LOCATION, POP_BLOCK);
+    _PyCompile_PopFBlock(c, COMPILE_FBLOCK_WITH, block);
+
+    /* End of body; start the cleanup. */
+
+    /* Preserve the body value below (exit_func, exit_self) across the
+     * __exit__ call (same shuffle as codegen_unwind_fblock). */
+    ADDOP_I(c, loc, SWAP, 3);
+    ADDOP_I(c, loc, SWAP, 2);
+
+    /* For successful outcome: call __exit__(None, None, None) and keep the
+     * body value below the discarded result. */
+    RETURN_IF_ERROR(codegen_call_exit_with_nones(c, loc));
+    ADDOP(c, loc, POP_TOP);
+    ADDOP_JUMP(c, loc, JUMP, exit);
+
+    /* For exceptional outcome: */
+    USE_LABEL(c, final);
+
+    ADDOP_JUMP(c, loc, SETUP_CLEANUP, cleanup);
+    ADDOP(c, loc, PUSH_EXC_INFO);
+    ADDOP(c, loc, WITH_EXCEPT_START);
+    RETURN_IF_ERROR(codegen_with_expr_except_finish(c, cleanup));
+
+    USE_LABEL(c, exit);
+    return SUCCESS;
+}
+
+static int
+codegen_with_expr(compiler *c, expr_ty e)
+{
+    return codegen_with_expr_inner(c, e, 0);
+}
+
 static int
 codegen_visit_expr(compiler *c, expr_ty e)
 {
@@ -5438,6 +5782,12 @@ codegen_visit_expr(compiler *c, expr_ty e)
         return codegen_lambda(c, e);
     case MatchExpr_kind:
         return codegen_match_expr(c, e);
+    case IfExpr_kind:
+        return codegen_if_expr(c, e);
+    case WithExpr_kind:
+        return codegen_with_expr(c, e);
+    case TryExpr_kind:
+        return codegen_try_expr(c, e);
     case IfExp_kind:
         return codegen_ifexp(c, e);
     case Dict_kind:
@@ -6679,10 +7029,11 @@ codegen_match(compiler *c, stmt_ty s)
     return result;
 }
 
-/* funnypy: compile the body of a match-expr case, leaving the value of the
-   trailing expression (or None) on the stack. */
+/* funnypy: compile a statement block as a value, leaving the value of the
+   trailing expression (or None) on the stack.  Shared by match-expr cases and
+   the if/with/try expressions. */
 static int
-codegen_match_expr_body(compiler *c, asdl_stmt_seq *body)
+codegen_block_value(compiler *c, asdl_stmt_seq *body)
 {
     Py_ssize_t n = asdl_seq_LEN(body);
     assert(n > 0);
@@ -6759,7 +7110,7 @@ codegen_match_expr(compiler *c, expr_ty e)
             /* Use the next location to give better locations for branch events */
             ADDOP(c, NEXT_LOCATION, POP_TOP);
         }
-        RETURN_IF_ERROR(codegen_match_expr_body(c, m->body));
+        RETURN_IF_ERROR(codegen_block_value(c, m->body));
         ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
         // If the pattern fails to match, we want the line number of the
         // cleanup to be associated with the failed pattern, not the last line
@@ -6782,7 +7133,7 @@ codegen_match_expr(compiler *c, expr_ty e)
             // The default case's guard failed: no case matched.
             RETURN_IF_ERROR(codegen_jump_if(c, LOC(m->pattern), m->guard, no_match, 0));
         }
-        RETURN_IF_ERROR(codegen_match_expr_body(c, m->body));
+        RETURN_IF_ERROR(codegen_block_value(c, m->body));
         ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
     }
     // No case matched: the value of the expression is None.
