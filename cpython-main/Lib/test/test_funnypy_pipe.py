@@ -1,4 +1,5 @@
-"""Tests for the Funny Python `..` operator: pipeline, placeholder, pipe-match."""
+"""Tests for the Funny Python `..` operator: pipeline, placeholder, pipe-match,
+and the implicit block argument `callable def(): …`."""
 
 import textwrap
 import unittest
@@ -144,6 +145,94 @@ class PlaceholderTests(unittest.TestCase):
         self.assertEqual(seen, [([1], "tag")])
 
 
+class BlockArgumentTests(unittest.TestCase):
+    """`callable def(): …` — a block def as an implicit call argument."""
+
+    def test_statement_without_placeholder(self):
+        seen = []
+        run = def(f): f()
+        run def():
+            seen.append("Running")
+        self.assertEqual(seen, ["Running"])
+
+    def test_equivalent_to_explicit_hole(self):
+        seen = []
+        run = def(f): f()
+        run(..) def():
+            seen.append("explicit")
+        run def():
+            seen.append("implicit")
+        self.assertEqual(seen, ["explicit", "implicit"])
+
+    def test_one_line_body(self):
+        seen = []
+        run = def(f): f()
+        run def(): seen.append("one")
+        self.assertEqual(seen, ["one"])
+
+    def test_attribute_callee(self):
+        seen = []
+
+        class Runner:
+            def go(self, f):
+                return f()
+
+        Runner().go def():
+            seen.append("attr")
+        self.assertEqual(seen, ["attr"])
+
+    def test_subscript_callee(self):
+        seen = []
+        table = {"run": def(f): f()}
+        table["run"] def():
+            seen.append("sub")
+        self.assertEqual(seen, ["sub"])
+
+    def test_def_takes_arguments(self):
+        apply5 = def(f): f(5)
+        res = apply5 def(x):
+            return x * 10
+        self.assertEqual(res, 50)
+
+    def test_assign_rhs(self):
+        seen = []
+        run = def(f): f()
+        res = run def():
+            seen.append("R")
+            return 42
+        self.assertEqual((res, seen), (42, ["R"]))
+
+    def test_assign_rhs_with_hole(self):
+        call2 = def(f, x, y): f(x, y)
+        res = call2(.., 1, 2) def(a, b):
+            return a + b
+        self.assertEqual(res, 3)
+
+    def test_implicit_return_of_call_result(self):
+        # The desugared Expr is the last statement of `outer`, so R5 returns
+        # the call's value.
+        run = def(f): f()
+
+        def outer():
+            run def(): return 7
+
+        self.assertEqual(outer(), 7)
+
+    def test_def_on_next_line_is_two_statements(self):
+        # `run` and the anonymous `def(): …` are separate statements: R1.
+        seen = []
+        run = def(f): seen.append(("called", f))
+        run
+        def(): seen.append("body")
+        self.assertEqual(seen, [])
+
+    def test_assign_rhs_on_next_line_is_two_statements(self):
+        f = def(): return 1
+        value = f
+        def(): pass
+        self.assertIs(value, f)
+
+
 class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_unfilled_placeholder_in_assignment(self):
@@ -166,6 +255,18 @@ class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_def_filler_on_call_without_hole(self):
         check_syntax_error(self, "[1]\n..map(len) def(x): return x")
+
+    def test_def_filler_on_call_with_args(self):
+        check_syntax_error(self, "f(1) def(): pass")
+
+    def test_def_filler_on_call_with_args_rhs(self):
+        check_syntax_error(self, "x = f(1) def(): pass")
+
+    def test_def_filler_on_nested_placeholder(self):
+        check_syntax_error(self, "print(f(..)) def(): pass")
+
+    def test_two_placeholders_with_def(self):
+        check_syntax_error(self, "f(.., ..) def(): pass")
 
     def test_ellipsis_call_unchanged(self):
         compile("f(...)", "<t>", "exec")
