@@ -100,479 +100,480 @@ static char *soft_keywords[] = {
 #define pipe_stage_type 1011
 #define pipe_stages_type 1012  // Left-recursive
 #define hole_call_expr_type 1013
-#define funnypy_pipe_stmt_type 1014
-#define funnypy_block_arg_stmt_type 1015
-#define simple_stmt_type 1016
-#define compound_stmt_type 1017
-#define assignment_type 1018
-#define match_assign_type 1019
-#define match_expr_stmt_type 1020
-#define funnypy_assign_stmt_type 1021
-#define funnypy_pipe_assign_stmt_type 1022
-#define if_expr_stmt_type 1023
-#define with_expr_stmt_type 1024
-#define try_expr_stmt_type 1025
-#define annotated_rhs_type 1026
-#define augassign_type 1027
-#define return_stmt_type 1028
-#define raise_stmt_type 1029
-#define pass_stmt_type 1030
-#define break_stmt_type 1031
-#define continue_stmt_type 1032
-#define global_stmt_type 1033
-#define nonlocal_stmt_type 1034
-#define del_stmt_type 1035
-#define yield_stmt_type 1036
-#define assert_stmt_type 1037
-#define import_stmt_type 1038
-#define import_name_type 1039
-#define import_from_type 1040
-#define import_from_targets_type 1041
-#define import_from_as_names_type 1042
-#define import_from_as_name_type 1043
-#define dotted_as_names_type 1044
-#define dotted_as_name_type 1045
-#define dotted_name_type 1046  // Left-recursive
-#define block_type 1047
-#define decorators_type 1048
-#define class_def_type 1049
-#define class_def_raw_type 1050
-#define function_def_type 1051
-#define function_def_raw_type 1052
-#define params_type 1053
-#define parameters_type 1054
-#define slash_no_default_type 1055
-#define slash_with_default_type 1056
-#define star_etc_type 1057
-#define kwds_type 1058
-#define param_no_default_type 1059
-#define param_no_default_star_annotation_type 1060
-#define param_with_default_type 1061
-#define param_maybe_default_type 1062
-#define param_type 1063
-#define param_star_annotation_type 1064
-#define annotation_type 1065
-#define star_annotation_type 1066
-#define default_type 1067
-#define if_stmt_type 1068
-#define elif_stmt_type 1069
-#define else_block_type 1070
-#define while_stmt_type 1071
-#define for_stmt_type 1072
-#define with_stmt_type 1073
-#define with_item_type 1074
-#define try_stmt_type 1075
-#define except_block_type 1076
-#define except_star_block_type 1077
-#define finally_block_type 1078
-#define match_stmt_type 1079
-#define subject_expr_type 1080
-#define case_block_type 1081
-#define guard_type 1082
-#define match_expr_type 1083
-#define funnypy_match_def_type 1084
-#define if_expr_type 1085
-#define elif_expr_type 1086
-#define with_expr_type 1087
-#define try_expr_type 1088
-#define patterns_type 1089
-#define pattern_type 1090
-#define as_pattern_type 1091
-#define or_pattern_type 1092
-#define closed_pattern_type 1093
-#define literal_pattern_type 1094
-#define literal_expr_type 1095
-#define complex_number_type 1096
-#define signed_number_type 1097
-#define signed_real_number_type 1098
-#define real_number_type 1099
-#define imaginary_number_type 1100
-#define capture_pattern_type 1101
-#define pattern_capture_target_type 1102
-#define wildcard_pattern_type 1103
-#define value_pattern_type 1104
-#define attr_type 1105  // Left-recursive
-#define name_or_attr_type 1106  // Left-recursive
-#define group_pattern_type 1107
-#define sequence_pattern_type 1108
-#define open_sequence_pattern_type 1109
-#define maybe_sequence_pattern_type 1110
-#define maybe_star_pattern_type 1111
-#define star_pattern_type 1112
-#define mapping_pattern_type 1113
-#define items_pattern_type 1114
-#define key_value_pattern_type 1115
-#define double_star_pattern_type 1116
-#define class_pattern_type 1117
-#define positional_patterns_type 1118
-#define keyword_patterns_type 1119
-#define keyword_pattern_type 1120
-#define type_alias_type 1121
-#define type_params_type 1122
-#define type_param_seq_type 1123
-#define type_param_type 1124
-#define type_param_bound_type 1125
-#define type_param_default_type 1126
-#define type_param_starred_default_type 1127
-#define expressions_type 1128
-#define expression_type 1129
-#define if_expression_type 1130
-#define yield_expr_type 1131
-#define star_expressions_type 1132
-#define star_expression_type 1133
-#define star_named_expressions_type 1134
-#define star_named_expressions_sequence_type 1135
-#define star_named_expression_type 1136
-#define star_named_expression_sequence_type 1137
-#define assignment_expression_type 1138
-#define named_expression_type 1139
-#define disjunction_type 1140
-#define conjunction_type 1141
-#define inversion_type 1142
-#define comparison_type 1143
-#define compare_op_bitwise_or_pair_type 1144
-#define eq_bitwise_or_type 1145
-#define noteq_bitwise_or_type 1146
-#define lte_bitwise_or_type 1147
-#define lt_bitwise_or_type 1148
-#define gte_bitwise_or_type 1149
-#define gt_bitwise_or_type 1150
-#define notin_bitwise_or_type 1151
-#define in_bitwise_or_type 1152
-#define isnot_bitwise_or_type 1153
-#define is_bitwise_or_type 1154
-#define bitwise_or_type 1155  // Left-recursive
-#define bitwise_xor_type 1156  // Left-recursive
-#define bitwise_and_type 1157  // Left-recursive
-#define shift_expr_type 1158  // Left-recursive
-#define sum_type 1159  // Left-recursive
-#define term_type 1160  // Left-recursive
-#define factor_type 1161
-#define power_type 1162
-#define await_primary_type 1163
-#define primary_type 1164  // Left-recursive
-#define slices_type 1165
-#define slice_type 1166
-#define atom_type 1167
-#define group_type 1168
-#define lambdef_type 1169
-#define def_expr_type 1170
-#define lambda_params_type 1171
-#define lambda_parameters_type 1172
-#define lambda_slash_no_default_type 1173
-#define lambda_slash_with_default_type 1174
-#define lambda_star_etc_type 1175
-#define lambda_kwds_type 1176
-#define lambda_param_no_default_type 1177
-#define lambda_param_with_default_type 1178
-#define lambda_param_maybe_default_type 1179
-#define lambda_param_type 1180
-#define fstring_middle_type 1181
-#define fstring_replacement_field_type 1182
-#define fstring_conversion_type 1183
-#define fstring_full_format_spec_type 1184
-#define fstring_format_spec_type 1185
-#define fstring_type 1186
-#define tstring_format_spec_replacement_field_type 1187
-#define tstring_format_spec_type 1188
-#define tstring_full_format_spec_type 1189
-#define tstring_replacement_field_type 1190
-#define tstring_middle_type 1191
-#define tstring_type 1192
-#define string_type 1193
-#define strings_type 1194
-#define list_type 1195
-#define tuple_type 1196
-#define set_type 1197
-#define dict_type 1198
-#define double_starred_kvpairs_type 1199
-#define double_starred_kvpair_type 1200
-#define kvpair_type 1201
-#define for_if_clauses_type 1202
-#define for_if_clause_type 1203
-#define listcomp_type 1204
-#define setcomp_type 1205
-#define genexp_type 1206
-#define dictcomp_type 1207
-#define arguments_type 1208
-#define args_type 1209
-#define kwargs_type 1210
-#define pipe_hole_type 1211
-#define starred_expression_type 1212
-#define kwarg_or_starred_type 1213
-#define kwarg_or_double_starred_type 1214
-#define star_targets_type 1215
-#define star_targets_list_seq_type 1216
-#define star_targets_tuple_seq_type 1217
-#define star_target_type 1218
-#define target_with_star_atom_type 1219
-#define star_atom_type 1220
-#define single_target_type 1221
-#define single_subscript_attribute_target_type 1222
-#define t_primary_type 1223  // Left-recursive
-#define t_lookahead_type 1224
-#define del_targets_type 1225
-#define del_target_type 1226
-#define del_t_atom_type 1227
-#define type_expressions_type 1228
-#define func_type_comment_type 1229
-#define invalid_arguments_type 1230
-#define invalid_kwarg_type 1231
-#define expression_without_invalid_type 1232
-#define invalid_legacy_expression_type 1233
-#define invalid_type_param_type 1234
-#define invalid_expression_type 1235
-#define invalid_if_expression_type 1236
-#define invalid_named_expression_type 1237
-#define invalid_assignment_type 1238
-#define invalid_ann_assign_target_type 1239
-#define invalid_raise_stmt_type 1240
-#define invalid_del_stmt_type 1241
-#define invalid_assert_stmt_type 1242
-#define invalid_block_type 1243
-#define invalid_comprehension_type 1244
-#define invalid_parameters_type 1245
-#define invalid_default_type 1246
-#define invalid_star_etc_type 1247
-#define invalid_kwds_type 1248
-#define invalid_parameters_helper_type 1249
-#define invalid_lambda_parameters_type 1250
-#define invalid_lambda_parameters_helper_type 1251
-#define invalid_lambda_star_etc_type 1252
-#define invalid_lambda_kwds_type 1253
-#define invalid_double_type_comments_type 1254
-#define invalid_with_item_type 1255
-#define invalid_for_if_clause_type 1256
-#define invalid_for_target_type 1257
-#define invalid_group_type 1258
-#define invalid_import_type 1259
-#define invalid_dotted_as_name_type 1260
-#define invalid_import_from_as_name_type 1261
-#define invalid_import_from_type 1262
-#define invalid_import_from_targets_type 1263
-#define invalid_with_stmt_type 1264
-#define invalid_with_stmt_indent_type 1265
-#define invalid_try_stmt_type 1266
-#define invalid_except_stmt_type 1267
-#define invalid_except_star_stmt_type 1268
-#define invalid_finally_stmt_type 1269
-#define invalid_except_stmt_indent_type 1270
-#define invalid_except_star_stmt_indent_type 1271
-#define invalid_match_stmt_type 1272
-#define invalid_case_block_type 1273
-#define invalid_as_pattern_type 1274
-#define invalid_class_pattern_type 1275
-#define invalid_mapping_pattern_type 1276
-#define invalid_class_argument_pattern_type 1277
-#define invalid_if_stmt_type 1278
-#define invalid_elif_stmt_type 1279
-#define invalid_else_stmt_type 1280
-#define invalid_while_stmt_type 1281
-#define invalid_for_stmt_type 1282
-#define invalid_def_raw_type 1283
-#define invalid_class_def_raw_type 1284
-#define invalid_double_starred_kvpairs_type 1285
-#define invalid_kvpair_unpacking_type 1286
-#define invalid_kvpair_type 1287
-#define invalid_starred_expression_unpacking_type 1288
-#define invalid_starred_expression_unpacking_sequence_type 1289
-#define invalid_starred_expression_type 1290
-#define invalid_fstring_replacement_field_type 1291
-#define invalid_fstring_conversion_character_type 1292
-#define invalid_tstring_replacement_field_type 1293
-#define invalid_tstring_conversion_character_type 1294
-#define invalid_string_tstring_concat_type 1295
-#define invalid_arithmetic_type 1296
-#define invalid_factor_type 1297
-#define invalid_type_params_type 1298
-#define invalid_noteq_type 1299
-#define _loop0_1_type 1300
-#define _loop1_2_type 1301
-#define _loop0_3_type 1302
-#define _gather_4_type 1303
-#define _tmp_5_type 1304
-#define _loop1_6_type 1305
-#define _tmp_7_type 1306
-#define _tmp_8_type 1307
-#define _tmp_9_type 1308
-#define _tmp_10_type 1309
-#define _tmp_11_type 1310
-#define _tmp_12_type 1311
-#define _tmp_13_type 1312
-#define _tmp_14_type 1313
-#define _tmp_15_type 1314
-#define _loop1_16_type 1315
-#define _tmp_17_type 1316
-#define _tmp_18_type 1317
-#define _loop0_19_type 1318
-#define _gather_20_type 1319
-#define _tmp_21_type 1320
-#define _tmp_22_type 1321
-#define _loop0_23_type 1322
-#define _loop1_24_type 1323
-#define _loop0_25_type 1324
-#define _gather_26_type 1325
-#define _tmp_27_type 1326
-#define _loop0_28_type 1327
-#define _gather_29_type 1328
-#define _loop1_30_type 1329
-#define _tmp_31_type 1330
-#define _loop0_32_type 1331
-#define _loop0_33_type 1332
-#define _loop1_34_type 1333
-#define _loop1_35_type 1334
-#define _loop0_36_type 1335
-#define _loop1_37_type 1336
-#define _loop0_38_type 1337
-#define _gather_39_type 1338
-#define _tmp_40_type 1339
-#define _loop1_41_type 1340
-#define _loop1_42_type 1341
-#define _loop0_43_type 1342
-#define _gather_44_type 1343
-#define _tmp_45_type 1344
-#define _tmp_46_type 1345
-#define _tmp_47_type 1346
-#define _loop0_48_type 1347
-#define _gather_49_type 1348
-#define _loop0_50_type 1349
-#define _gather_51_type 1350
-#define _tmp_52_type 1351
-#define _loop0_53_type 1352
-#define _gather_54_type 1353
-#define _loop0_55_type 1354
-#define _gather_56_type 1355
-#define _loop0_57_type 1356
-#define _gather_58_type 1357
-#define _loop1_59_type 1358
-#define _loop1_60_type 1359
-#define _loop0_61_type 1360
-#define _gather_62_type 1361
-#define _loop0_63_type 1362
-#define _gather_64_type 1363
-#define _loop1_65_type 1364
-#define _loop1_66_type 1365
-#define _loop1_67_type 1366
-#define _tmp_68_type 1367
-#define _loop0_69_type 1368
-#define _gather_70_type 1369
-#define _tmp_71_type 1370
-#define _tmp_72_type 1371
-#define _tmp_73_type 1372
-#define _tmp_74_type 1373
-#define _tmp_75_type 1374
-#define _loop0_76_type 1375
-#define _loop0_77_type 1376
-#define _loop1_78_type 1377
-#define _loop1_79_type 1378
-#define _loop0_80_type 1379
-#define _loop1_81_type 1380
-#define _loop0_82_type 1381
-#define _loop0_83_type 1382
-#define _loop0_84_type 1383
-#define _loop0_85_type 1384
-#define _loop1_86_type 1385
-#define _loop1_87_type 1386
-#define _tmp_88_type 1387
-#define _loop0_89_type 1388
-#define _gather_90_type 1389
-#define _loop1_91_type 1390
-#define _loop0_92_type 1391
-#define _tmp_93_type 1392
-#define _loop0_94_type 1393
-#define _gather_95_type 1394
-#define _tmp_96_type 1395
-#define _loop0_97_type 1396
-#define _gather_98_type 1397
-#define _loop0_99_type 1398
-#define _gather_100_type 1399
-#define _loop0_101_type 1400
-#define _loop0_102_type 1401
-#define _gather_103_type 1402
-#define _loop1_104_type 1403
-#define _tmp_105_type 1404
-#define _loop0_106_type 1405
-#define _gather_107_type 1406
-#define _loop0_108_type 1407
-#define _gather_109_type 1408
-#define _tmp_110_type 1409
-#define _tmp_111_type 1410
-#define _loop0_112_type 1411
-#define _gather_113_type 1412
-#define _tmp_114_type 1413
-#define _tmp_115_type 1414
-#define _tmp_116_type 1415
-#define _tmp_117_type 1416
-#define _tmp_118_type 1417
-#define _loop1_119_type 1418
-#define _tmp_120_type 1419
-#define _tmp_121_type 1420
-#define _tmp_122_type 1421
-#define _tmp_123_type 1422
-#define _tmp_124_type 1423
-#define _loop0_125_type 1424
-#define _loop0_126_type 1425
-#define _tmp_127_type 1426
-#define _tmp_128_type 1427
-#define _tmp_129_type 1428
-#define _tmp_130_type 1429
-#define _tmp_131_type 1430
-#define _tmp_132_type 1431
-#define _tmp_133_type 1432
-#define _tmp_134_type 1433
-#define _loop0_135_type 1434
-#define _gather_136_type 1435
-#define _tmp_137_type 1436
-#define _tmp_138_type 1437
-#define _tmp_139_type 1438
-#define _tmp_140_type 1439
-#define _loop0_141_type 1440
-#define _gather_142_type 1441
-#define _tmp_143_type 1442
-#define _loop0_144_type 1443
-#define _gather_145_type 1444
-#define _loop0_146_type 1445
-#define _gather_147_type 1446
-#define _tmp_148_type 1447
-#define _loop0_149_type 1448
-#define _tmp_150_type 1449
-#define _tmp_151_type 1450
-#define _tmp_152_type 1451
-#define _tmp_153_type 1452
-#define _tmp_154_type 1453
-#define _tmp_155_type 1454
-#define _tmp_156_type 1455
-#define _tmp_157_type 1456
-#define _tmp_158_type 1457
-#define _tmp_159_type 1458
-#define _tmp_160_type 1459
-#define _tmp_161_type 1460
-#define _tmp_162_type 1461
-#define _tmp_163_type 1462
-#define _tmp_164_type 1463
-#define _tmp_165_type 1464
-#define _tmp_166_type 1465
-#define _tmp_167_type 1466
-#define _tmp_168_type 1467
-#define _tmp_169_type 1468
-#define _tmp_170_type 1469
-#define _tmp_171_type 1470
-#define _tmp_172_type 1471
-#define _tmp_173_type 1472
-#define _tmp_174_type 1473
-#define _tmp_175_type 1474
-#define _tmp_176_type 1475
-#define _tmp_177_type 1476
-#define _loop0_178_type 1477
-#define _tmp_179_type 1478
-#define _tmp_180_type 1479
-#define _tmp_181_type 1480
-#define _tmp_182_type 1481
-#define _loop0_183_type 1482
-#define _gather_184_type 1483
-#define _tmp_185_type 1484
-#define _tmp_186_type 1485
-#define _tmp_187_type 1486
+#define funnypy_block_pipe_stmt_type 1014
+#define funnypy_pipe_stmt_type 1015
+#define funnypy_block_arg_stmt_type 1016
+#define simple_stmt_type 1017
+#define compound_stmt_type 1018
+#define assignment_type 1019
+#define match_assign_type 1020
+#define match_expr_stmt_type 1021
+#define funnypy_assign_stmt_type 1022
+#define funnypy_pipe_assign_stmt_type 1023
+#define if_expr_stmt_type 1024
+#define with_expr_stmt_type 1025
+#define try_expr_stmt_type 1026
+#define annotated_rhs_type 1027
+#define augassign_type 1028
+#define return_stmt_type 1029
+#define raise_stmt_type 1030
+#define pass_stmt_type 1031
+#define break_stmt_type 1032
+#define continue_stmt_type 1033
+#define global_stmt_type 1034
+#define nonlocal_stmt_type 1035
+#define del_stmt_type 1036
+#define yield_stmt_type 1037
+#define assert_stmt_type 1038
+#define import_stmt_type 1039
+#define import_name_type 1040
+#define import_from_type 1041
+#define import_from_targets_type 1042
+#define import_from_as_names_type 1043
+#define import_from_as_name_type 1044
+#define dotted_as_names_type 1045
+#define dotted_as_name_type 1046
+#define dotted_name_type 1047  // Left-recursive
+#define block_type 1048
+#define decorators_type 1049
+#define class_def_type 1050
+#define class_def_raw_type 1051
+#define function_def_type 1052
+#define function_def_raw_type 1053
+#define params_type 1054
+#define parameters_type 1055
+#define slash_no_default_type 1056
+#define slash_with_default_type 1057
+#define star_etc_type 1058
+#define kwds_type 1059
+#define param_no_default_type 1060
+#define param_no_default_star_annotation_type 1061
+#define param_with_default_type 1062
+#define param_maybe_default_type 1063
+#define param_type 1064
+#define param_star_annotation_type 1065
+#define annotation_type 1066
+#define star_annotation_type 1067
+#define default_type 1068
+#define if_stmt_type 1069
+#define elif_stmt_type 1070
+#define else_block_type 1071
+#define while_stmt_type 1072
+#define for_stmt_type 1073
+#define with_stmt_type 1074
+#define with_item_type 1075
+#define try_stmt_type 1076
+#define except_block_type 1077
+#define except_star_block_type 1078
+#define finally_block_type 1079
+#define match_stmt_type 1080
+#define subject_expr_type 1081
+#define case_block_type 1082
+#define guard_type 1083
+#define match_expr_type 1084
+#define funnypy_match_def_type 1085
+#define if_expr_type 1086
+#define elif_expr_type 1087
+#define with_expr_type 1088
+#define try_expr_type 1089
+#define patterns_type 1090
+#define pattern_type 1091
+#define as_pattern_type 1092
+#define or_pattern_type 1093
+#define closed_pattern_type 1094
+#define literal_pattern_type 1095
+#define literal_expr_type 1096
+#define complex_number_type 1097
+#define signed_number_type 1098
+#define signed_real_number_type 1099
+#define real_number_type 1100
+#define imaginary_number_type 1101
+#define capture_pattern_type 1102
+#define pattern_capture_target_type 1103
+#define wildcard_pattern_type 1104
+#define value_pattern_type 1105
+#define attr_type 1106  // Left-recursive
+#define name_or_attr_type 1107  // Left-recursive
+#define group_pattern_type 1108
+#define sequence_pattern_type 1109
+#define open_sequence_pattern_type 1110
+#define maybe_sequence_pattern_type 1111
+#define maybe_star_pattern_type 1112
+#define star_pattern_type 1113
+#define mapping_pattern_type 1114
+#define items_pattern_type 1115
+#define key_value_pattern_type 1116
+#define double_star_pattern_type 1117
+#define class_pattern_type 1118
+#define positional_patterns_type 1119
+#define keyword_patterns_type 1120
+#define keyword_pattern_type 1121
+#define type_alias_type 1122
+#define type_params_type 1123
+#define type_param_seq_type 1124
+#define type_param_type 1125
+#define type_param_bound_type 1126
+#define type_param_default_type 1127
+#define type_param_starred_default_type 1128
+#define expressions_type 1129
+#define expression_type 1130
+#define if_expression_type 1131
+#define yield_expr_type 1132
+#define star_expressions_type 1133
+#define star_expression_type 1134
+#define star_named_expressions_type 1135
+#define star_named_expressions_sequence_type 1136
+#define star_named_expression_type 1137
+#define star_named_expression_sequence_type 1138
+#define assignment_expression_type 1139
+#define named_expression_type 1140
+#define disjunction_type 1141
+#define conjunction_type 1142
+#define inversion_type 1143
+#define comparison_type 1144
+#define compare_op_bitwise_or_pair_type 1145
+#define eq_bitwise_or_type 1146
+#define noteq_bitwise_or_type 1147
+#define lte_bitwise_or_type 1148
+#define lt_bitwise_or_type 1149
+#define gte_bitwise_or_type 1150
+#define gt_bitwise_or_type 1151
+#define notin_bitwise_or_type 1152
+#define in_bitwise_or_type 1153
+#define isnot_bitwise_or_type 1154
+#define is_bitwise_or_type 1155
+#define bitwise_or_type 1156  // Left-recursive
+#define bitwise_xor_type 1157  // Left-recursive
+#define bitwise_and_type 1158  // Left-recursive
+#define shift_expr_type 1159  // Left-recursive
+#define sum_type 1160  // Left-recursive
+#define term_type 1161  // Left-recursive
+#define factor_type 1162
+#define power_type 1163
+#define await_primary_type 1164
+#define primary_type 1165  // Left-recursive
+#define slices_type 1166
+#define slice_type 1167
+#define atom_type 1168
+#define group_type 1169
+#define lambdef_type 1170
+#define def_expr_type 1171
+#define lambda_params_type 1172
+#define lambda_parameters_type 1173
+#define lambda_slash_no_default_type 1174
+#define lambda_slash_with_default_type 1175
+#define lambda_star_etc_type 1176
+#define lambda_kwds_type 1177
+#define lambda_param_no_default_type 1178
+#define lambda_param_with_default_type 1179
+#define lambda_param_maybe_default_type 1180
+#define lambda_param_type 1181
+#define fstring_middle_type 1182
+#define fstring_replacement_field_type 1183
+#define fstring_conversion_type 1184
+#define fstring_full_format_spec_type 1185
+#define fstring_format_spec_type 1186
+#define fstring_type 1187
+#define tstring_format_spec_replacement_field_type 1188
+#define tstring_format_spec_type 1189
+#define tstring_full_format_spec_type 1190
+#define tstring_replacement_field_type 1191
+#define tstring_middle_type 1192
+#define tstring_type 1193
+#define string_type 1194
+#define strings_type 1195
+#define list_type 1196
+#define tuple_type 1197
+#define set_type 1198
+#define dict_type 1199
+#define double_starred_kvpairs_type 1200
+#define double_starred_kvpair_type 1201
+#define kvpair_type 1202
+#define for_if_clauses_type 1203
+#define for_if_clause_type 1204
+#define listcomp_type 1205
+#define setcomp_type 1206
+#define genexp_type 1207
+#define dictcomp_type 1208
+#define arguments_type 1209
+#define args_type 1210
+#define kwargs_type 1211
+#define pipe_hole_type 1212
+#define starred_expression_type 1213
+#define kwarg_or_starred_type 1214
+#define kwarg_or_double_starred_type 1215
+#define star_targets_type 1216
+#define star_targets_list_seq_type 1217
+#define star_targets_tuple_seq_type 1218
+#define star_target_type 1219
+#define target_with_star_atom_type 1220
+#define star_atom_type 1221
+#define single_target_type 1222
+#define single_subscript_attribute_target_type 1223
+#define t_primary_type 1224  // Left-recursive
+#define t_lookahead_type 1225
+#define del_targets_type 1226
+#define del_target_type 1227
+#define del_t_atom_type 1228
+#define type_expressions_type 1229
+#define func_type_comment_type 1230
+#define invalid_arguments_type 1231
+#define invalid_kwarg_type 1232
+#define expression_without_invalid_type 1233
+#define invalid_legacy_expression_type 1234
+#define invalid_type_param_type 1235
+#define invalid_expression_type 1236
+#define invalid_if_expression_type 1237
+#define invalid_named_expression_type 1238
+#define invalid_assignment_type 1239
+#define invalid_ann_assign_target_type 1240
+#define invalid_raise_stmt_type 1241
+#define invalid_del_stmt_type 1242
+#define invalid_assert_stmt_type 1243
+#define invalid_block_type 1244
+#define invalid_comprehension_type 1245
+#define invalid_parameters_type 1246
+#define invalid_default_type 1247
+#define invalid_star_etc_type 1248
+#define invalid_kwds_type 1249
+#define invalid_parameters_helper_type 1250
+#define invalid_lambda_parameters_type 1251
+#define invalid_lambda_parameters_helper_type 1252
+#define invalid_lambda_star_etc_type 1253
+#define invalid_lambda_kwds_type 1254
+#define invalid_double_type_comments_type 1255
+#define invalid_with_item_type 1256
+#define invalid_for_if_clause_type 1257
+#define invalid_for_target_type 1258
+#define invalid_group_type 1259
+#define invalid_import_type 1260
+#define invalid_dotted_as_name_type 1261
+#define invalid_import_from_as_name_type 1262
+#define invalid_import_from_type 1263
+#define invalid_import_from_targets_type 1264
+#define invalid_with_stmt_type 1265
+#define invalid_with_stmt_indent_type 1266
+#define invalid_try_stmt_type 1267
+#define invalid_except_stmt_type 1268
+#define invalid_except_star_stmt_type 1269
+#define invalid_finally_stmt_type 1270
+#define invalid_except_stmt_indent_type 1271
+#define invalid_except_star_stmt_indent_type 1272
+#define invalid_match_stmt_type 1273
+#define invalid_case_block_type 1274
+#define invalid_as_pattern_type 1275
+#define invalid_class_pattern_type 1276
+#define invalid_mapping_pattern_type 1277
+#define invalid_class_argument_pattern_type 1278
+#define invalid_if_stmt_type 1279
+#define invalid_elif_stmt_type 1280
+#define invalid_else_stmt_type 1281
+#define invalid_while_stmt_type 1282
+#define invalid_for_stmt_type 1283
+#define invalid_def_raw_type 1284
+#define invalid_class_def_raw_type 1285
+#define invalid_double_starred_kvpairs_type 1286
+#define invalid_kvpair_unpacking_type 1287
+#define invalid_kvpair_type 1288
+#define invalid_starred_expression_unpacking_type 1289
+#define invalid_starred_expression_unpacking_sequence_type 1290
+#define invalid_starred_expression_type 1291
+#define invalid_fstring_replacement_field_type 1292
+#define invalid_fstring_conversion_character_type 1293
+#define invalid_tstring_replacement_field_type 1294
+#define invalid_tstring_conversion_character_type 1295
+#define invalid_string_tstring_concat_type 1296
+#define invalid_arithmetic_type 1297
+#define invalid_factor_type 1298
+#define invalid_type_params_type 1299
+#define invalid_noteq_type 1300
+#define _loop0_1_type 1301
+#define _loop1_2_type 1302
+#define _loop0_3_type 1303
+#define _gather_4_type 1304
+#define _tmp_5_type 1305
+#define _loop1_6_type 1306
+#define _tmp_7_type 1307
+#define _tmp_8_type 1308
+#define _tmp_9_type 1309
+#define _tmp_10_type 1310
+#define _tmp_11_type 1311
+#define _tmp_12_type 1312
+#define _tmp_13_type 1313
+#define _tmp_14_type 1314
+#define _tmp_15_type 1315
+#define _tmp_16_type 1316
+#define _loop1_17_type 1317
+#define _tmp_18_type 1318
+#define _loop0_19_type 1319
+#define _gather_20_type 1320
+#define _tmp_21_type 1321
+#define _tmp_22_type 1322
+#define _loop0_23_type 1323
+#define _loop1_24_type 1324
+#define _loop0_25_type 1325
+#define _gather_26_type 1326
+#define _tmp_27_type 1327
+#define _loop0_28_type 1328
+#define _gather_29_type 1329
+#define _loop1_30_type 1330
+#define _tmp_31_type 1331
+#define _loop0_32_type 1332
+#define _loop0_33_type 1333
+#define _loop1_34_type 1334
+#define _loop1_35_type 1335
+#define _loop0_36_type 1336
+#define _loop1_37_type 1337
+#define _loop0_38_type 1338
+#define _gather_39_type 1339
+#define _tmp_40_type 1340
+#define _loop1_41_type 1341
+#define _loop1_42_type 1342
+#define _loop0_43_type 1343
+#define _gather_44_type 1344
+#define _tmp_45_type 1345
+#define _tmp_46_type 1346
+#define _tmp_47_type 1347
+#define _loop0_48_type 1348
+#define _gather_49_type 1349
+#define _loop0_50_type 1350
+#define _gather_51_type 1351
+#define _tmp_52_type 1352
+#define _loop0_53_type 1353
+#define _gather_54_type 1354
+#define _loop0_55_type 1355
+#define _gather_56_type 1356
+#define _loop0_57_type 1357
+#define _gather_58_type 1358
+#define _loop1_59_type 1359
+#define _loop1_60_type 1360
+#define _loop0_61_type 1361
+#define _gather_62_type 1362
+#define _loop0_63_type 1363
+#define _gather_64_type 1364
+#define _loop1_65_type 1365
+#define _loop1_66_type 1366
+#define _loop1_67_type 1367
+#define _tmp_68_type 1368
+#define _loop0_69_type 1369
+#define _gather_70_type 1370
+#define _tmp_71_type 1371
+#define _tmp_72_type 1372
+#define _tmp_73_type 1373
+#define _tmp_74_type 1374
+#define _tmp_75_type 1375
+#define _loop0_76_type 1376
+#define _loop0_77_type 1377
+#define _loop1_78_type 1378
+#define _loop1_79_type 1379
+#define _loop0_80_type 1380
+#define _loop1_81_type 1381
+#define _loop0_82_type 1382
+#define _loop0_83_type 1383
+#define _loop0_84_type 1384
+#define _loop0_85_type 1385
+#define _loop1_86_type 1386
+#define _loop1_87_type 1387
+#define _tmp_88_type 1388
+#define _loop0_89_type 1389
+#define _gather_90_type 1390
+#define _loop1_91_type 1391
+#define _loop0_92_type 1392
+#define _tmp_93_type 1393
+#define _loop0_94_type 1394
+#define _gather_95_type 1395
+#define _tmp_96_type 1396
+#define _loop0_97_type 1397
+#define _gather_98_type 1398
+#define _loop0_99_type 1399
+#define _gather_100_type 1400
+#define _loop0_101_type 1401
+#define _loop0_102_type 1402
+#define _gather_103_type 1403
+#define _loop1_104_type 1404
+#define _tmp_105_type 1405
+#define _loop0_106_type 1406
+#define _gather_107_type 1407
+#define _loop0_108_type 1408
+#define _gather_109_type 1409
+#define _tmp_110_type 1410
+#define _tmp_111_type 1411
+#define _loop0_112_type 1412
+#define _gather_113_type 1413
+#define _tmp_114_type 1414
+#define _tmp_115_type 1415
+#define _tmp_116_type 1416
+#define _tmp_117_type 1417
+#define _tmp_118_type 1418
+#define _loop1_119_type 1419
+#define _tmp_120_type 1420
+#define _tmp_121_type 1421
+#define _tmp_122_type 1422
+#define _tmp_123_type 1423
+#define _tmp_124_type 1424
+#define _loop0_125_type 1425
+#define _loop0_126_type 1426
+#define _tmp_127_type 1427
+#define _tmp_128_type 1428
+#define _tmp_129_type 1429
+#define _tmp_130_type 1430
+#define _tmp_131_type 1431
+#define _tmp_132_type 1432
+#define _tmp_133_type 1433
+#define _tmp_134_type 1434
+#define _loop0_135_type 1435
+#define _gather_136_type 1436
+#define _tmp_137_type 1437
+#define _tmp_138_type 1438
+#define _tmp_139_type 1439
+#define _tmp_140_type 1440
+#define _loop0_141_type 1441
+#define _gather_142_type 1442
+#define _tmp_143_type 1443
+#define _loop0_144_type 1444
+#define _gather_145_type 1445
+#define _loop0_146_type 1446
+#define _gather_147_type 1447
+#define _tmp_148_type 1448
+#define _loop0_149_type 1449
+#define _tmp_150_type 1450
+#define _tmp_151_type 1451
+#define _tmp_152_type 1452
+#define _tmp_153_type 1453
+#define _tmp_154_type 1454
+#define _tmp_155_type 1455
+#define _tmp_156_type 1456
+#define _tmp_157_type 1457
+#define _tmp_158_type 1458
+#define _tmp_159_type 1459
+#define _tmp_160_type 1460
+#define _tmp_161_type 1461
+#define _tmp_162_type 1462
+#define _tmp_163_type 1463
+#define _tmp_164_type 1464
+#define _tmp_165_type 1465
+#define _tmp_166_type 1466
+#define _tmp_167_type 1467
+#define _tmp_168_type 1468
+#define _tmp_169_type 1469
+#define _tmp_170_type 1470
+#define _tmp_171_type 1471
+#define _tmp_172_type 1472
+#define _tmp_173_type 1473
+#define _tmp_174_type 1474
+#define _tmp_175_type 1475
+#define _tmp_176_type 1476
+#define _tmp_177_type 1477
+#define _loop0_178_type 1478
+#define _tmp_179_type 1479
+#define _tmp_180_type 1480
+#define _tmp_181_type 1481
+#define _tmp_182_type 1482
+#define _loop0_183_type 1483
+#define _gather_184_type 1484
+#define _tmp_185_type 1485
+#define _tmp_186_type 1486
+#define _tmp_187_type 1487
 
 static mod_ty file_rule(Parser *p);
 static mod_ty interactive_rule(Parser *p);
@@ -588,6 +589,7 @@ static stmt_ty funnypy_lambda_def_rule(Parser *p);
 static void* pipe_stage_rule(Parser *p);
 static asdl_seq* pipe_stages_rule(Parser *p);
 static expr_ty hole_call_expr_rule(Parser *p);
+static asdl_stmt_seq* funnypy_block_pipe_stmt_rule(Parser *p);
 static asdl_stmt_seq* funnypy_pipe_stmt_rule(Parser *p);
 static asdl_stmt_seq* funnypy_block_arg_stmt_rule(Parser *p);
 static stmt_ty simple_stmt_rule(Parser *p);
@@ -889,8 +891,8 @@ static void *_tmp_12_rule(Parser *p);
 static void *_tmp_13_rule(Parser *p);
 static void *_tmp_14_rule(Parser *p);
 static void *_tmp_15_rule(Parser *p);
-static asdl_seq *_loop1_16_rule(Parser *p);
-static void *_tmp_17_rule(Parser *p);
+static void *_tmp_16_rule(Parser *p);
+static asdl_seq *_loop1_17_rule(Parser *p);
 static void *_tmp_18_rule(Parser *p);
 static asdl_seq *_loop0_19_rule(Parser *p);
 static asdl_seq *_gather_20_rule(Parser *p);
@@ -1307,6 +1309,7 @@ statements_rule(Parser *p)
 
 // statement:
 //     | match_assign NEWLINE
+//     | funnypy_block_pipe_stmt
 //     | compound_stmt
 //     | funnypy_lambda_stmt
 //     | funnypy_pipe_stmt
@@ -1356,6 +1359,30 @@ statement_rule(Parser *p)
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s statement[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "match_assign NEWLINE"));
+    }
+    { // funnypy_block_pipe_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> statement[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "funnypy_block_pipe_stmt"));
+        asdl_stmt_seq* a;
+        if (
+            (a = (asdl_stmt_seq*)funnypy_block_pipe_stmt_rule(p))  // funnypy_block_pipe_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ statement[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "funnypy_block_pipe_stmt"));
+            _res = _PyPegen_register_stmts ( p , a );
+            if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                p->level--;
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s statement[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "funnypy_block_pipe_stmt"));
     }
     { // compound_stmt
         if (p->error_indicator) {
@@ -2867,6 +2894,184 @@ hole_call_expr_rule(Parser *p)
     return _res;
 }
 
+// funnypy_block_pipe_stmt:
+//     | invalid_if_stmt
+//     | invalid_with_stmt_indent
+//     | invalid_with_stmt
+//     | invalid_try_stmt
+//     | invalid_match_stmt
+//     | (match_expr | if_expr | with_expr | try_expr) pipe_stages NEWLINE
+//     | (match_expr | if_expr | with_expr | try_expr) pipe_stages
+static asdl_stmt_seq*
+funnypy_block_pipe_stmt_rule(Parser *p)
+{
+    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
+        _Pypegen_stack_overflow(p);
+    }
+    if (p->error_indicator) {
+        p->level--;
+        return NULL;
+    }
+    asdl_stmt_seq* _res = NULL;
+    int _mark = p->mark;
+    if (p->call_invalid_rules) { // invalid_if_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_if_stmt"));
+        void *invalid_if_stmt_var;
+        if (
+            (invalid_if_stmt_var = invalid_if_stmt_rule(p))  // invalid_if_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_if_stmt"));
+            _res = invalid_if_stmt_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_if_stmt"));
+    }
+    if (p->call_invalid_rules) { // invalid_with_stmt_indent
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_with_stmt_indent"));
+        void *invalid_with_stmt_indent_var;
+        if (
+            (invalid_with_stmt_indent_var = invalid_with_stmt_indent_rule(p))  // invalid_with_stmt_indent
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_with_stmt_indent"));
+            _res = invalid_with_stmt_indent_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_with_stmt_indent"));
+    }
+    if (p->call_invalid_rules) { // invalid_with_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_with_stmt"));
+        void *invalid_with_stmt_var;
+        if (
+            (invalid_with_stmt_var = invalid_with_stmt_rule(p))  // invalid_with_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_with_stmt"));
+            _res = invalid_with_stmt_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_with_stmt"));
+    }
+    if (p->call_invalid_rules) { // invalid_try_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_try_stmt"));
+        void *invalid_try_stmt_var;
+        if (
+            (invalid_try_stmt_var = invalid_try_stmt_rule(p))  // invalid_try_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_try_stmt"));
+            _res = invalid_try_stmt_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_try_stmt"));
+    }
+    if (p->call_invalid_rules) { // invalid_match_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_match_stmt"));
+        void *invalid_match_stmt_var;
+        if (
+            (invalid_match_stmt_var = invalid_match_stmt_rule(p))  // invalid_match_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_match_stmt"));
+            _res = invalid_match_stmt_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_match_stmt"));
+    }
+    { // (match_expr | if_expr | with_expr | try_expr) pipe_stages NEWLINE
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages NEWLINE"));
+        Token * newline_var;
+        asdl_seq* s;
+        void *v;
+        if (
+            (v = _tmp_7_rule(p))  // match_expr | if_expr | with_expr | try_expr
+            &&
+            (s = pipe_stages_rule(p))  // pipe_stages
+            &&
+            (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages NEWLINE"));
+            _res = _PyPegen_funnypy_pipeline ( p , v , s );
+            if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                p->level--;
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages NEWLINE"));
+    }
+    { // (match_expr | if_expr | with_expr | try_expr) pipe_stages
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> funnypy_block_pipe_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages"));
+        asdl_seq* s;
+        void *v;
+        if (
+            (v = _tmp_7_rule(p))  // match_expr | if_expr | with_expr | try_expr
+            &&
+            (s = pipe_stages_rule(p))  // pipe_stages
+        )
+        {
+            D(fprintf(stderr, "%*c+ funnypy_block_pipe_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages"));
+            _res = _PyPegen_funnypy_pipeline ( p , v , s );
+            if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
+                p->error_indicator = 1;
+                p->level--;
+                return NULL;
+            }
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s funnypy_block_pipe_stmt[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "(match_expr | if_expr | with_expr | try_expr) pipe_stages"));
+    }
+    _res = NULL;
+  done:
+    p->level--;
+    return _res;
+}
+
 // funnypy_pipe_stmt:
 //     | star_expressions NEWLINE [pipe_stages NEWLINE] '.' '.' "match" ':' NEWLINE INDENT case_block+ DEDENT
 //     | star_expressions NEWLINE pipe_stages NEWLINE
@@ -2910,7 +3115,7 @@ funnypy_pipe_stmt_rule(Parser *p)
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
-            (s = _tmp_7_rule(p), !p->error_indicator)  // [pipe_stages NEWLINE]
+            (s = _tmp_8_rule(p), !p->error_indicator)  // [pipe_stages NEWLINE]
             &&
             (_literal = _PyPegen_expect_token(p, 23))  // token='.'
             &&
@@ -3344,7 +3549,7 @@ simple_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> simple_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&('import' | 'from' | \"lazy\") import_stmt"));
         stmt_ty import_stmt_var;
         if (
-            _PyPegen_lookahead(1, _tmp_8_rule, p)
+            _PyPegen_lookahead(1, _tmp_9_rule, p)
             &&
             (import_stmt_var = import_stmt_rule(p))  // import_stmt
         )
@@ -3637,7 +3842,7 @@ compound_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> compound_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&('def' | '@' | 'async') function_def"));
         stmt_ty function_def_var;
         if (
-            _PyPegen_lookahead(1, _tmp_9_rule, p)
+            _PyPegen_lookahead(1, _tmp_10_rule, p)
             &&
             (function_def_var = function_def_rule(p))  // function_def
         )
@@ -3679,7 +3884,7 @@ compound_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> compound_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&('class' | '@') class_def"));
         stmt_ty class_def_var;
         if (
-            _PyPegen_lookahead(1, _tmp_10_rule, p)
+            _PyPegen_lookahead(1, _tmp_11_rule, p)
             &&
             (class_def_var = class_def_rule(p))  // class_def
         )
@@ -3700,7 +3905,7 @@ compound_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> compound_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&('with' | 'async') with_stmt"));
         stmt_ty with_stmt_var;
         if (
-            _PyPegen_lookahead(1, _tmp_11_rule, p)
+            _PyPegen_lookahead(1, _tmp_12_rule, p)
             &&
             (with_stmt_var = with_stmt_rule(p))  // with_stmt
         )
@@ -3721,7 +3926,7 @@ compound_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> compound_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&('for' | 'async') for_stmt"));
         stmt_ty for_stmt_var;
         if (
-            _PyPegen_lookahead(1, _tmp_12_rule, p)
+            _PyPegen_lookahead(1, _tmp_13_rule, p)
             &&
             (for_stmt_var = for_stmt_rule(p))  // for_stmt
         )
@@ -3784,7 +3989,7 @@ compound_stmt_rule(Parser *p)
         D(fprintf(stderr, "%*c> compound_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "&(\"match\" 'def') funnypy_match_def"));
         stmt_ty funnypy_match_def_var;
         if (
-            _PyPegen_lookahead(1, _tmp_13_rule, p)
+            _PyPegen_lookahead(1, _tmp_14_rule, p)
             &&
             (funnypy_match_def_var = funnypy_match_def_rule(p))  // funnypy_match_def
         )
@@ -3866,7 +4071,7 @@ assignment_rule(Parser *p)
             &&
             (b = expression_rule(p))  // expression
             &&
-            (c = _tmp_14_rule(p), !p->error_indicator)  // ['=' annotated_rhs]
+            (c = _tmp_15_rule(p), !p->error_indicator)  // ['=' annotated_rhs]
         )
         {
             D(fprintf(stderr, "%*c+ assignment[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "NAME ':' expression ['=' annotated_rhs]"));
@@ -3902,13 +4107,13 @@ assignment_rule(Parser *p)
         expr_ty b;
         void *c;
         if (
-            (a = _tmp_15_rule(p))  // '(' single_target ')' | single_subscript_attribute_target
+            (a = _tmp_16_rule(p))  // '(' single_target ')' | single_subscript_attribute_target
             &&
             (_literal = _PyPegen_expect_token(p, 11))  // token=':'
             &&
             (b = expression_rule(p))  // expression
             &&
-            (c = _tmp_14_rule(p), !p->error_indicator)  // ['=' annotated_rhs]
+            (c = _tmp_15_rule(p), !p->error_indicator)  // ['=' annotated_rhs]
         )
         {
             D(fprintf(stderr, "%*c+ assignment[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "('(' single_target ')' | single_subscript_attribute_target) ':' expression ['=' annotated_rhs]"));
@@ -3943,7 +4148,7 @@ assignment_rule(Parser *p)
         expr_ty b;
         void *tc;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (b = annotated_rhs_rule(p))  // annotated_rhs
             &&
@@ -4128,7 +4333,7 @@ match_expr_stmt_rule(Parser *p)
         asdl_expr_seq* a;
         expr_ty b;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (b = match_expr_rule(p))  // match_expr
         )
@@ -4198,7 +4403,7 @@ funnypy_assign_stmt_rule(Parser *p)
         Token * newline_var;
         Token * newline_var_1;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
@@ -4245,13 +4450,13 @@ funnypy_assign_stmt_rule(Parser *p)
         Token * indent_var;
         Token * newline_var;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
             (indent_var = _PyPegen_expect_token(p, INDENT))  // token='INDENT'
             &&
-            (b = _tmp_17_rule(p))  // if_expr | with_expr | try_expr
+            (b = _tmp_18_rule(p))  // if_expr | with_expr | try_expr
             &&
             (dedent_var = _PyPegen_expect_token(p, DEDENT))  // token='DEDENT'
         )
@@ -4315,7 +4520,7 @@ funnypy_pipe_assign_stmt_rule(Parser *p)
         asdl_seq* s;
         expr_ty v;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
@@ -4359,13 +4564,13 @@ funnypy_pipe_assign_stmt_rule(Parser *p)
         asdl_seq* s;
         void *v;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
             (indent_var = _PyPegen_expect_token(p, INDENT))  // token='INDENT'
             &&
-            (v = _tmp_18_rule(p))  // match_expr | if_expr | with_expr | try_expr
+            (v = _tmp_7_rule(p))  // match_expr | if_expr | with_expr | try_expr
             &&
             (s = pipe_stages_rule(p))  // pipe_stages
             &&
@@ -4401,7 +4606,7 @@ funnypy_pipe_assign_stmt_rule(Parser *p)
         asdl_seq* s;
         stmt_ty v;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
             &&
@@ -4466,7 +4671,7 @@ if_expr_stmt_rule(Parser *p)
         asdl_expr_seq* a;
         expr_ty b;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (b = if_expr_rule(p))  // if_expr
         )
@@ -4530,7 +4735,7 @@ with_expr_stmt_rule(Parser *p)
         asdl_expr_seq* a;
         expr_ty b;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (b = with_expr_rule(p))  // with_expr
         )
@@ -4594,7 +4799,7 @@ try_expr_stmt_rule(Parser *p)
         asdl_expr_seq* a;
         expr_ty b;
         if (
-            (a = (asdl_expr_seq*)_loop1_16_rule(p))  // ((star_targets '='))+
+            (a = (asdl_expr_seq*)_loop1_17_rule(p))  // ((star_targets '='))+
             &&
             (b = try_expr_rule(p))  // try_expr
         )
@@ -10674,6 +10879,7 @@ if_expr_rule(Parser *p)
 }
 
 // elif_expr:
+//     | invalid_elif_stmt
 //     | 'elif' named_expression ':' block elif_expr
 //     | 'elif' named_expression ':' block else_block?
 static expr_ty
@@ -10697,6 +10903,25 @@ elif_expr_rule(Parser *p)
     UNUSED(_start_lineno); // Only used by EXTRA macro
     int _start_col_offset = p->tokens[_mark]->col_offset;
     UNUSED(_start_col_offset); // Only used by EXTRA macro
+    if (p->call_invalid_rules) { // invalid_elif_stmt
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> elif_expr[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "invalid_elif_stmt"));
+        void *invalid_elif_stmt_var;
+        if (
+            (invalid_elif_stmt_var = invalid_elif_stmt_rule(p))  // invalid_elif_stmt
+        )
+        {
+            D(fprintf(stderr, "%*c+ elif_expr[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "invalid_elif_stmt"));
+            _res = invalid_elif_stmt_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s elif_expr[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "invalid_elif_stmt"));
+    }
     { // 'elif' named_expression ':' block elif_expr
         if (p->error_indicator) {
             p->level--;
@@ -32139,9 +32364,104 @@ _loop1_6_rule(Parser *p)
     return _seq;
 }
 
-// _tmp_7: pipe_stages NEWLINE
+// _tmp_7: match_expr | if_expr | with_expr | try_expr
 static void *
 _tmp_7_rule(Parser *p)
+{
+    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
+        _Pypegen_stack_overflow(p);
+    }
+    if (p->error_indicator) {
+        p->level--;
+        return NULL;
+    }
+    void * _res = NULL;
+    int _mark = p->mark;
+    { // match_expr
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_7[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "match_expr"));
+        expr_ty match_expr_var;
+        if (
+            (match_expr_var = match_expr_rule(p))  // match_expr
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_7[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "match_expr"));
+            _res = match_expr_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_7[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "match_expr"));
+    }
+    { // if_expr
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_7[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "if_expr"));
+        expr_ty if_expr_var;
+        if (
+            (if_expr_var = if_expr_rule(p))  // if_expr
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_7[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "if_expr"));
+            _res = if_expr_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_7[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "if_expr"));
+    }
+    { // with_expr
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_7[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "with_expr"));
+        expr_ty with_expr_var;
+        if (
+            (with_expr_var = with_expr_rule(p))  // with_expr
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_7[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "with_expr"));
+            _res = with_expr_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_7[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "with_expr"));
+    }
+    { // try_expr
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_7[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "try_expr"));
+        expr_ty try_expr_var;
+        if (
+            (try_expr_var = try_expr_rule(p))  // try_expr
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_7[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "try_expr"));
+            _res = try_expr_var;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_7[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "try_expr"));
+    }
+    _res = NULL;
+  done:
+    p->level--;
+    return _res;
+}
+
+// _tmp_8: pipe_stages NEWLINE
+static void *
+_tmp_8_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32157,7 +32477,7 @@ _tmp_7_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_7[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "pipe_stages NEWLINE"));
+        D(fprintf(stderr, "%*c> _tmp_8[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "pipe_stages NEWLINE"));
         Token * newline_var;
         asdl_seq* ps;
         if (
@@ -32166,7 +32486,7 @@ _tmp_7_rule(Parser *p)
             (newline_var = _PyPegen_expect_token(p, NEWLINE))  // token='NEWLINE'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_7[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "pipe_stages NEWLINE"));
+            D(fprintf(stderr, "%*c+ _tmp_8[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "pipe_stages NEWLINE"));
             _res = ps;
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
@@ -32176,7 +32496,7 @@ _tmp_7_rule(Parser *p)
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_7[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_8[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "pipe_stages NEWLINE"));
     }
     _res = NULL;
@@ -32185,9 +32505,9 @@ _tmp_7_rule(Parser *p)
     return _res;
 }
 
-// _tmp_8: 'import' | 'from' | "lazy"
+// _tmp_9: 'import' | 'from' | "lazy"
 static void *
-_tmp_8_rule(Parser *p)
+_tmp_9_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32203,18 +32523,18 @@ _tmp_8_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_8[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'import'"));
+        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'import'"));
         Token * _keyword;
         if (
             (_keyword = _PyPegen_expect_token(p, 674))  // token='import'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_8[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'import'"));
+            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'import'"));
             _res = _keyword;
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_8[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'import'"));
     }
     { // 'from'
@@ -32222,18 +32542,18 @@ _tmp_8_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_8[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'from'"));
+        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'from'"));
         Token * _keyword;
         if (
             (_keyword = _PyPegen_expect_token(p, 673))  // token='from'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_8[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'from'"));
+            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'from'"));
             _res = _keyword;
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_8[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'from'"));
     }
     { // "lazy"
@@ -32241,18 +32561,18 @@ _tmp_8_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_8[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"lazy\""));
+        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"lazy\""));
         expr_ty _keyword;
         if (
             (_keyword = _PyPegen_expect_soft_keyword(p, "lazy"))  // soft_keyword='"lazy"'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_8[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"lazy\""));
+            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"lazy\""));
             _res = _keyword;
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_8[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "\"lazy\""));
     }
     _res = NULL;
@@ -32261,9 +32581,9 @@ _tmp_8_rule(Parser *p)
     return _res;
 }
 
-// _tmp_9: 'def' | '@' | 'async'
+// _tmp_10: 'def' | '@' | 'async'
 static void *
-_tmp_9_rule(Parser *p)
+_tmp_10_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32279,95 +32599,19 @@ _tmp_9_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'def'"));
+        D(fprintf(stderr, "%*c> _tmp_10[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'def'"));
         Token * _keyword;
         if (
             (_keyword = _PyPegen_expect_token(p, 740))  // token='def'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'def'"));
-            _res = _keyword;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'def'"));
-    }
-    { // '@'
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'@'"));
-        Token * _literal;
-        if (
-            (_literal = _PyPegen_expect_token(p, 49))  // token='@'
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'@'"));
-            _res = _literal;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'@'"));
-    }
-    { // 'async'
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_9[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'async'"));
-        Token * _keyword;
-        if (
-            (_keyword = _PyPegen_expect_token(p, 739))  // token='async'
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_9[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'async'"));
-            _res = _keyword;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_9[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'async'"));
-    }
-    _res = NULL;
-  done:
-    p->level--;
-    return _res;
-}
-
-// _tmp_10: 'class' | '@'
-static void *
-_tmp_10_rule(Parser *p)
-{
-    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
-        _Pypegen_stack_overflow(p);
-    }
-    if (p->error_indicator) {
-        p->level--;
-        return NULL;
-    }
-    void * _res = NULL;
-    int _mark = p->mark;
-    { // 'class'
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_10[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'class'"));
-        Token * _keyword;
-        if (
-            (_keyword = _PyPegen_expect_token(p, 742))  // token='class'
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_10[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'class'"));
+            D(fprintf(stderr, "%*c+ _tmp_10[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'def'"));
             _res = _keyword;
             goto done;
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s _tmp_10[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'class'"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'def'"));
     }
     { // '@'
         if (p->error_indicator) {
@@ -32388,15 +32632,91 @@ _tmp_10_rule(Parser *p)
         D(fprintf(stderr, "%*c%s _tmp_10[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'@'"));
     }
+    { // 'async'
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_10[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'async'"));
+        Token * _keyword;
+        if (
+            (_keyword = _PyPegen_expect_token(p, 739))  // token='async'
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_10[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'async'"));
+            _res = _keyword;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_10[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'async'"));
+    }
     _res = NULL;
   done:
     p->level--;
     return _res;
 }
 
-// _tmp_11: 'with' | 'async'
+// _tmp_11: 'class' | '@'
 static void *
 _tmp_11_rule(Parser *p)
+{
+    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
+        _Pypegen_stack_overflow(p);
+    }
+    if (p->error_indicator) {
+        p->level--;
+        return NULL;
+    }
+    void * _res = NULL;
+    int _mark = p->mark;
+    { // 'class'
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_11[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'class'"));
+        Token * _keyword;
+        if (
+            (_keyword = _PyPegen_expect_token(p, 742))  // token='class'
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_11[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'class'"));
+            _res = _keyword;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_11[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'class'"));
+    }
+    { // '@'
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_11[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'@'"));
+        Token * _literal;
+        if (
+            (_literal = _PyPegen_expect_token(p, 49))  // token='@'
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_11[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'@'"));
+            _res = _literal;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_11[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'@'"));
+    }
+    _res = NULL;
+  done:
+    p->level--;
+    return _res;
+}
+
+// _tmp_12: 'with' | 'async'
+static void *
+_tmp_12_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32412,76 +32732,19 @@ _tmp_11_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_11[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'with'"));
+        D(fprintf(stderr, "%*c> _tmp_12[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'with'"));
         Token * _keyword;
         if (
             (_keyword = _PyPegen_expect_token(p, 688))  // token='with'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_11[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'with'"));
-            _res = _keyword;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_11[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'with'"));
-    }
-    { // 'async'
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_11[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'async'"));
-        Token * _keyword;
-        if (
-            (_keyword = _PyPegen_expect_token(p, 739))  // token='async'
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_11[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'async'"));
-            _res = _keyword;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_11[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'async'"));
-    }
-    _res = NULL;
-  done:
-    p->level--;
-    return _res;
-}
-
-// _tmp_12: 'for' | 'async'
-static void *
-_tmp_12_rule(Parser *p)
-{
-    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
-        _Pypegen_stack_overflow(p);
-    }
-    if (p->error_indicator) {
-        p->level--;
-        return NULL;
-    }
-    void * _res = NULL;
-    int _mark = p->mark;
-    { // 'for'
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_12[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'for'"));
-        Token * _keyword;
-        if (
-            (_keyword = _PyPegen_expect_token(p, 735))  // token='for'
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_12[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'for'"));
+            D(fprintf(stderr, "%*c+ _tmp_12[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'with'"));
             _res = _keyword;
             goto done;
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s _tmp_12[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'for'"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'with'"));
     }
     { // 'async'
         if (p->error_indicator) {
@@ -32508,9 +32771,66 @@ _tmp_12_rule(Parser *p)
     return _res;
 }
 
-// _tmp_13: "match" 'def'
+// _tmp_13: 'for' | 'async'
 static void *
 _tmp_13_rule(Parser *p)
+{
+    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
+        _Pypegen_stack_overflow(p);
+    }
+    if (p->error_indicator) {
+        p->level--;
+        return NULL;
+    }
+    void * _res = NULL;
+    int _mark = p->mark;
+    { // 'for'
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_13[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'for'"));
+        Token * _keyword;
+        if (
+            (_keyword = _PyPegen_expect_token(p, 735))  // token='for'
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_13[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'for'"));
+            _res = _keyword;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_13[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'for'"));
+    }
+    { // 'async'
+        if (p->error_indicator) {
+            p->level--;
+            return NULL;
+        }
+        D(fprintf(stderr, "%*c> _tmp_13[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'async'"));
+        Token * _keyword;
+        if (
+            (_keyword = _PyPegen_expect_token(p, 739))  // token='async'
+        )
+        {
+            D(fprintf(stderr, "%*c+ _tmp_13[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'async'"));
+            _res = _keyword;
+            goto done;
+        }
+        p->mark = _mark;
+        D(fprintf(stderr, "%*c%s _tmp_13[%d-%d]: %s failed!\n", p->level, ' ',
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'async'"));
+    }
+    _res = NULL;
+  done:
+    p->level--;
+    return _res;
+}
+
+// _tmp_14: "match" 'def'
+static void *
+_tmp_14_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32526,7 +32846,7 @@ _tmp_13_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_13[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"match\" 'def'"));
+        D(fprintf(stderr, "%*c> _tmp_14[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"match\" 'def'"));
         expr_ty _keyword;
         Token * _keyword_1;
         if (
@@ -32535,12 +32855,12 @@ _tmp_13_rule(Parser *p)
             (_keyword_1 = _PyPegen_expect_token(p, 740))  // token='def'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_13[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"match\" 'def'"));
+            D(fprintf(stderr, "%*c+ _tmp_14[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"match\" 'def'"));
             _res = _PyPegen_dummy_name(p, _keyword, _keyword_1);
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_13[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_14[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "\"match\" 'def'"));
     }
     _res = NULL;
@@ -32549,9 +32869,9 @@ _tmp_13_rule(Parser *p)
     return _res;
 }
 
-// _tmp_14: '=' annotated_rhs
+// _tmp_15: '=' annotated_rhs
 static void *
-_tmp_14_rule(Parser *p)
+_tmp_15_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32567,7 +32887,7 @@ _tmp_14_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_14[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'=' annotated_rhs"));
+        D(fprintf(stderr, "%*c> _tmp_15[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'=' annotated_rhs"));
         Token * _literal;
         expr_ty d;
         if (
@@ -32576,7 +32896,7 @@ _tmp_14_rule(Parser *p)
             (d = annotated_rhs_rule(p))  // annotated_rhs
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_14[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'=' annotated_rhs"));
+            D(fprintf(stderr, "%*c+ _tmp_15[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'=' annotated_rhs"));
             _res = d;
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
@@ -32586,7 +32906,7 @@ _tmp_14_rule(Parser *p)
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_14[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_15[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'=' annotated_rhs"));
     }
     _res = NULL;
@@ -32595,9 +32915,9 @@ _tmp_14_rule(Parser *p)
     return _res;
 }
 
-// _tmp_15: '(' single_target ')' | single_subscript_attribute_target
+// _tmp_16: '(' single_target ')' | single_subscript_attribute_target
 static void *
-_tmp_15_rule(Parser *p)
+_tmp_16_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32613,7 +32933,7 @@ _tmp_15_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_15[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'(' single_target ')'"));
+        D(fprintf(stderr, "%*c> _tmp_16[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'(' single_target ')'"));
         Token * _literal;
         Token * _literal_1;
         expr_ty b;
@@ -32625,7 +32945,7 @@ _tmp_15_rule(Parser *p)
             (_literal_1 = _PyPegen_expect_token(p, 8))  // token=')'
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_15[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'(' single_target ')'"));
+            D(fprintf(stderr, "%*c+ _tmp_16[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'(' single_target ')'"));
             _res = b;
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
@@ -32635,7 +32955,7 @@ _tmp_15_rule(Parser *p)
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_15[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_16[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'(' single_target ')'"));
     }
     { // single_subscript_attribute_target
@@ -32643,18 +32963,18 @@ _tmp_15_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _tmp_15[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "single_subscript_attribute_target"));
+        D(fprintf(stderr, "%*c> _tmp_16[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "single_subscript_attribute_target"));
         expr_ty single_subscript_attribute_target_var;
         if (
             (single_subscript_attribute_target_var = single_subscript_attribute_target_rule(p))  // single_subscript_attribute_target
         )
         {
-            D(fprintf(stderr, "%*c+ _tmp_15[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "single_subscript_attribute_target"));
+            D(fprintf(stderr, "%*c+ _tmp_16[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "single_subscript_attribute_target"));
             _res = single_subscript_attribute_target_var;
             goto done;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_15[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _tmp_16[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "single_subscript_attribute_target"));
     }
     _res = NULL;
@@ -32663,9 +32983,9 @@ _tmp_15_rule(Parser *p)
     return _res;
 }
 
-// _loop1_16: (star_targets '=')
+// _loop1_17: (star_targets '=')
 static asdl_seq *
-_loop1_16_rule(Parser *p)
+_loop1_17_rule(Parser *p)
 {
     if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
         _Pypegen_stack_overflow(p);
@@ -32690,7 +33010,7 @@ _loop1_16_rule(Parser *p)
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> _loop1_16[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "(star_targets '=')"));
+        D(fprintf(stderr, "%*c> _loop1_17[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "(star_targets '=')"));
         void *_tmp_163_var;
         while (
             (_tmp_163_var = _tmp_163_rule(p))  // star_targets '='
@@ -32713,7 +33033,7 @@ _loop1_16_rule(Parser *p)
             _mark = p->mark;
         }
         p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _loop1_16[%d-%d]: %s failed!\n", p->level, ' ',
+        D(fprintf(stderr, "%*c%s _loop1_17[%d-%d]: %s failed!\n", p->level, ' ',
                   p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "(star_targets '=')"));
     }
     if (_n == 0 || p->error_indicator) {
@@ -32735,83 +33055,7 @@ _loop1_16_rule(Parser *p)
     return _seq;
 }
 
-// _tmp_17: if_expr | with_expr | try_expr
-static void *
-_tmp_17_rule(Parser *p)
-{
-    if (p->level++ == MAXSTACK || _Py_ReachedRecursionLimitWithMargin(PyThreadState_Get(), 1)) {
-        _Pypegen_stack_overflow(p);
-    }
-    if (p->error_indicator) {
-        p->level--;
-        return NULL;
-    }
-    void * _res = NULL;
-    int _mark = p->mark;
-    { // if_expr
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_17[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "if_expr"));
-        expr_ty if_expr_var;
-        if (
-            (if_expr_var = if_expr_rule(p))  // if_expr
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_17[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "if_expr"));
-            _res = if_expr_var;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_17[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "if_expr"));
-    }
-    { // with_expr
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_17[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "with_expr"));
-        expr_ty with_expr_var;
-        if (
-            (with_expr_var = with_expr_rule(p))  // with_expr
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_17[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "with_expr"));
-            _res = with_expr_var;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_17[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "with_expr"));
-    }
-    { // try_expr
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_17[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "try_expr"));
-        expr_ty try_expr_var;
-        if (
-            (try_expr_var = try_expr_rule(p))  // try_expr
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_17[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "try_expr"));
-            _res = try_expr_var;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_17[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "try_expr"));
-    }
-    _res = NULL;
-  done:
-    p->level--;
-    return _res;
-}
-
-// _tmp_18: match_expr | if_expr | with_expr | try_expr
+// _tmp_18: if_expr | with_expr | try_expr
 static void *
 _tmp_18_rule(Parser *p)
 {
@@ -32824,25 +33068,6 @@ _tmp_18_rule(Parser *p)
     }
     void * _res = NULL;
     int _mark = p->mark;
-    { // match_expr
-        if (p->error_indicator) {
-            p->level--;
-            return NULL;
-        }
-        D(fprintf(stderr, "%*c> _tmp_18[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "match_expr"));
-        expr_ty match_expr_var;
-        if (
-            (match_expr_var = match_expr_rule(p))  // match_expr
-        )
-        {
-            D(fprintf(stderr, "%*c+ _tmp_18[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "match_expr"));
-            _res = match_expr_var;
-            goto done;
-        }
-        p->mark = _mark;
-        D(fprintf(stderr, "%*c%s _tmp_18[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "match_expr"));
-    }
     { // if_expr
         if (p->error_indicator) {
             p->level--;

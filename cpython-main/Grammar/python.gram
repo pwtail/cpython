@@ -100,6 +100,10 @@ statement[asdl_stmt_seq*]:
     | a=match_assign NEWLINE {
         _PyPegen_register_stmts(p,
             (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
+    # funnypy: a `..` pipeline on a block-expression value must be tried
+    # before `compound_stmt` -- `if_stmt`/`match_stmt`/… would swallow the
+    # block and leave the stages dangling.
+    | a[asdl_stmt_seq*]=funnypy_block_pipe_stmt { _PyPegen_register_stmts(p, a) }
     | a=compound_stmt { _PyPegen_register_stmts(p ,
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)
                         ) }
@@ -203,6 +207,24 @@ pipe_stages[asdl_seq*]:
 # fast without fetching the filler on unrelated syntax errors).
 hole_call_expr[expr_ty]:
     | e=star_expressions { _PyPegen_funnypy_require_hole_call(p, e) }
+
+# Funny Python: a `..` pipeline whose input is a block expression
+# (match/if/with/try).  It must be tried before `compound_stmt` (see
+# `statement`), because those statement forms would otherwise swallow the
+# block and leave the stages dangling.  The statement-specific invalid rules
+# are mirrored here -- and `elif_expr` carries `invalid_elif_stmt` -- so a
+# malformed block still reports the precise error: the block-expression
+# rules below reach the generic `invalid_block` otherwise.
+funnypy_block_pipe_stmt[asdl_stmt_seq*]:
+    | invalid_if_stmt
+    | invalid_with_stmt_indent
+    | invalid_with_stmt
+    | invalid_try_stmt
+    | invalid_match_stmt
+    | v=(match_expr | if_expr | with_expr | try_expr) s=pipe_stages NEWLINE {
+        _PyPegen_funnypy_pipeline(p, v, s) }
+    | v=(match_expr | if_expr | with_expr | try_expr) s=pipe_stages {
+        _PyPegen_funnypy_pipeline(p, v, s) }
 
 # Funny Python: pipeline / pipe-match / placeholder statements.
 funnypy_pipe_stmt[asdl_stmt_seq*]:
@@ -694,6 +716,7 @@ if_expr[expr_ty]:
             CHECK(stmt_ty, _PyAST_Expr(c, EXTRA)))), EXTRA) }
     | 'if' a=named_expression ':' b=block c=[else_block] { _PyAST_IfExpr(a, b, c, EXTRA) }
 elif_expr[expr_ty]:
+    | invalid_elif_stmt
     | 'elif' a=named_expression ':' b=block c=elif_expr {
         _PyAST_IfExpr(a, b, CHECK(asdl_stmt_seq*, _PyPegen_singleton_seq(p,
             CHECK(stmt_ty, _PyAST_Expr(c, EXTRA)))), EXTRA) }

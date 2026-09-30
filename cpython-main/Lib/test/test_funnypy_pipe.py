@@ -466,6 +466,132 @@ class PipeValueTests(unittest.TestCase):
         self.assertEqual(outer(), 7)
 
 
+class BlockValueStandaloneTests(unittest.TestCase):
+    """A `..` pipeline can follow a block expression (`match`/`if`/`with`/
+    `try`) at statement level."""
+
+    def test_match_value(self):
+        seen = []
+        show = def(v): seen.append(v)
+        match 5:
+            case x:
+                x * 2
+        ..show()
+        self.assertEqual(seen, [10])
+
+    def test_if_else_value(self):
+        seen = []
+        show = def(v): seen.append(v)
+        if False:
+            1
+        else:
+            2
+        ..show()
+        self.assertEqual(seen, [2])
+
+    def test_if_elif_else_value(self):
+        seen = []
+        show = def(v): seen.append(v)
+        if False:
+            1
+        elif True:
+            2
+        else:
+            3
+        ..show()
+        self.assertEqual(seen, [2])
+
+    def test_try_value(self):
+        seen = []
+        show = def(v): seen.append(v)
+        try:
+            5
+        except ValueError:
+            "bad"
+        ..show()
+        self.assertEqual(seen, [5])
+
+    def test_try_except_path(self):
+        seen = []
+        show = def(v): seen.append(v)
+        try:
+            raise ValueError("boom")
+        except ValueError:
+            7
+        ..show()
+        self.assertEqual(seen, [7])
+
+    def test_with_value(self):
+        seen = []
+        show = def(v): seen.append(v)
+        with open("/dev/null") as fh:
+            "read"
+        ..show()
+        self.assertEqual(seen, ["read"])
+
+    def test_chained_stages(self):
+        inc = def(x): x + 1
+        seen = []
+        show = def(v): seen.append(v)
+        match 5:
+            case x:
+                x * 2
+        ..inc()
+        ..show()
+        self.assertEqual(seen, [11])
+
+    def test_multi_statement_body_takes_trailing_expression(self):
+        seen = []
+        show = def(v): seen.append(v)
+        if True:
+            unused = 1
+            unused + 41
+        ..show()
+        self.assertEqual(seen, [42])
+
+    def test_data_last_order(self):
+        out = []
+        record = def(tag, v): out.append((tag, v))
+        if True:
+            "yes"
+        ..record("tag")
+        self.assertEqual(out, [("tag", "yes")])
+
+
+class BlockValueStandaloneSyntaxTests(unittest.TestCase):
+    """`for`/`while`/`def` produce no value, and malformed blocks keep their
+    statement-specific errors (the invalid rules are mirrored)."""
+
+    def test_for_is_not_a_value(self):
+        check_syntax_error(self, "for x in [1]:\n    x\n..print()")
+
+    def test_while_is_not_a_value(self):
+        check_syntax_error(self, "while False:\n    1\n..print()")
+
+    def test_def_is_not_a_value(self):
+        check_syntax_error(self, "def f():\n    1\n..print()")
+
+    def test_class_is_not_a_value(self):
+        check_syntax_error(self, "class C:\n    pass\n..print()")
+
+    def test_missing_block_messages_are_specific(self):
+        cases = [
+            ('if True:\nprint "No indent"',
+             "expected an indented block after 'if' statement on line 1"),
+            ('if False:\n    1\nelif True:\nprint(1)',
+             "expected an indented block after 'elif' statement on line 3"),
+            ('with open("/dev/null"):\nprint(1)',
+             "expected an indented block after 'with' statement on line 1"),
+            ('try:\nprint(1)',
+             "expected an indented block after 'try' statement on line 1"),
+            ('match 1:\nprint(1)',
+             "expected an indented block after 'match' statement on line 1"),
+        ]
+        for src, msg in cases:
+            with self.subTest(src=src):
+                check_syntax_error(self, src, msg)
+
+
 class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_stage_after_block_filler_rejected(self):
