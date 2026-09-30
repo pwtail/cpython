@@ -60,6 +60,10 @@ res =                     # блочное значение в RHS
         case 1: "one"
     ..str()               # = res = str(match x: …)
 
+match x:                  # standalone: блочное значение в пайплайне
+    case 1: "one"         # = str(match x: case 1: "one")
+..str()
+
 x                    # pipe-match: обычный compound match с piped-субъектом
 ..match:
     case 1:
@@ -99,10 +103,11 @@ x                    # pipe-match: обычный compound match с piped-суб
   `..match:` применяются по цепочке, итог — субъект match.
 - Значение пайплайна (то, что идёт до звеньев) — не только плоское
   выражение: допустимы def-блок (`def(): …`, хоистится как `<lambda>`) и
-  блочные выражения `match`/`if`/`with`/`try`. В RHS присваивания пайплайн
-  записывается как `цель =` с новой строки, значением ниже и звеньями на
-  его уровне (`res =` / ‹значение› / `..run()`); множественные цели
-  (`a = b = …`) поддержаны.
+  блочные выражения `match`/`if`/`with`/`try` — как standalone, так и в RHS
+  присваивания. В RHS пайплайн записывается как `цель =` с новой строки,
+  значением ниже и звеньями на его уровне (`res =` / ‹значение› / `..run()`);
+  множественные цели (`a = b = …`) поддержаны. `for`/`while`/`def`/`class`
+  значения не дают: `..` после них — SyntaxError.
 
 ## Semantics
 
@@ -146,9 +151,18 @@ x                    # pipe-match: обычный compound match с piped-суб
     после `simple_stmts`, но перед `match_expr_stmt`/`if_expr_stmt`/… — те
     иначе проглотят блок и оставят звенья; def-значение добавлено также
     альтернативами `funnypy_lambda_def pipe_stages` в `funnypy_lambda_stmt`
-    перед голой def-альтернативой. Оба правила — **после** `compound_stmt`,
-    иначе их блок-выражения перехватывают generic `invalid_block` вместо
-    `invalid_if_stmt`/`invalid_try_stmt`/… (см. ограничения).
+    перед голой def-альтернативой. `funnypy_pipe_assign_stmt` — **после**
+    `compound_stmt`; `funnypy_block_pipe_stmt` — **перед** `compound_stmt`
+    (он должен опередить `if_stmt`/`match_stmt`/…, которые иначе проглотят
+    блок и оставят звенья). Чтобы это не ухудшило сообщения об ошибках,
+    `funnypy_block_pipe_stmt` **зеркалит** специфичные invalid-правила
+    (`invalid_if_stmt`, `invalid_with_stmt_indent`, `invalid_with_stmt`,
+    `invalid_try_stmt`, `invalid_match_stmt`) перед блочными альтернативами:
+    сами блочные выражения доходят до generic `invalid_block` и выдали бы
+    «expected an indented block» вместо «…after 'if' statement». По той же
+    причине `elif_expr` получил `invalid_elif_stmt` первой альтернативой
+    (зеркало `elif_stmt`). Клаузы (`else`/`except`/`finally`/`case`)
+    сообщения сохраняют сами — их правила уже несут invalid-альтернативы.
   - `Parser/action_helpers.c` — `FunnypyPipeStage`, `funnypy_find_hole`
     (один hole в прямых позиционных аргументах внешнего вызова, >1 →
     SyntaxError), `funnypy_fill_def` (резолюция филлера: hole → ссылка,
@@ -163,15 +177,13 @@ x                    # pipe-match: обычный compound match с piped-суб
   - `Python/symtable.c` — compile-ошибка на `Name("<pipe>")` в Load-контексте
     (незаполненный placeholder) с локацией через `SET_ERROR_LOCATION`.
 - **Ограничения v1 (проверено):**
-  - Значение пайплайна в **standalone**-форме — плоское выражение или
-    def-блок; standalone-форма блочного значения (`match …` / `if …` /
-    `try …`, затем `..`) **не поддержана (дефер)**. Правило перед
-    `compound_stmt` перехватывало generic `invalid_block` вместо
-    `invalid_if_stmt`/`invalid_try_stmt`/… и ломало сообщения об ошибках
-    (`test_exceptions`: «expected an indented block after 'if' statement»);
-    все funnypy statement-правила стоят после `compound_stmt` именно поэтому.
-    Блочное значение работает в RHS-форме (`res =` / ‹блок› / `..f()`),
-    которая этой коллизии не имеет.
+  - Standalone-форма значения — плоское выражение, def-блок или блочное
+    выражение; `for`/`while`/`def`/`class` значения не дают, `..` после них
+    — SyntaxError. `async with`/`except*` **не** становятся значениями (как
+    и не стали выражениями, R11) — такие формы с `..` — SyntaxError.
+  - Зеркало invalid-правил в `funnypy_block_pipe_stmt` — синхронизируемая с
+    `*_stmt` точка: при добавлении upstream новых invalid-правил их нужно
+    добавить и сюда, иначе malformed блок отдаст generic-сообщение.
   - def-filler и filler-блок-выражение (`if`/`with`/`try`, R11) всегда
     последние: блок съедает финальный NEWLINE/DEDENT, разделителя для
     следующей стадии нет. Стадии после такого filler'а — SyntaxError.
@@ -186,7 +198,9 @@ x                    # pipe-match: обычный compound match с piped-суб
     следующую строку — в лоб это давало продолжение на каждом выражении
     и вешало `test_cmd_line_script`. Работают файлы, `-c` и Jupyter
     (ячейка исполняется exec-парсом; последнее выражение компилируется
-    из уже готового AST).
+    из уже готового AST). Это касается всех новых statement-правил
+    пайплайна (`funnypy_pipe_stmt`, `funnypy_block_pipe_stmt`,
+    `funnypy_pipe_assign_stmt`): они подключены только в `statement`.
   - **Неявный блок-аргумент (R10) в терминальном REPL не работает**:
     `funnypy_block_arg_stmt` подключён только в `statement`; exec-режим
     (файлы, `-c`, Jupyter) форму поддерживает, `compile(…, 'single')` —
@@ -209,4 +223,8 @@ x                    # pipe-match: обычный compound match с piped-суб
   эквивалентность форме B, хоист def-значения как `<lambda>`, standalone def,
   def с параметрами, плоское выражение, голая стадия, цепочка стадий,
   блочные значения `match`/`if`/`with`/`try` в RHS, множественные цели,
-  неявный return результата пайплайна.
+  неявный return результата пайплайна. Standalone-блоки — класс
+  `BlockValueStandaloneTests` (match / if / if-elif-else / try / with,
+  цепочка, многостатейное тело, data-last) и
+  `BlockValueStandaloneSyntaxTests` (for/while/def/class + `..` → SyntaxError;
+  паритет сообщений для if/elif/with/try/match без блока).

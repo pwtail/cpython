@@ -531,15 +531,22 @@ inline в `codegen_function_body`; `compiler_unit` имеет дополните
 4. **Хелперы.** `funnypy_def_value_ref`, `funnypy_pipe_build` (хоист +
    `Expr`/`Assign`), `pipeline_def`, `pipe_assign`; `pipeline` — обёртка
    над `pipe_build`.
-5. **Дефер: standalone-форма блочного значения.** «`match …` / `if …` /
-   `try …`, затем `..`» не поддержана. Правило перед `compound_stmt`
-   перехватывало generic `invalid_block` вместо `invalid_if_stmt` и ломало
-   `test_exceptions` («expected an indented block after 'if' statement»);
-   все funnypy statement-правила стоят после `compound_stmt` именно поэтому.
-   В RHS-форме блочное значение работает — там нет конкурирующего
-   statement-пути с лучшим сообщением.
+5. **Standalone-форма блочного значения.** «`match …` / `if …` / `with …` /
+   `try …`, затем `..`» поддержана через `funnypy_block_pipe_stmt` — оно
+   подключено в `statement` **перед** `compound_stmt` (иначе
+   `if_stmt`/`match_stmt`/… проглотят блок и оставят звенья висеть). Чтобы
+   это не ухудшило сообщения об ошибках, правило **зеркалит** специфичные
+   invalid-правила (`invalid_if_stmt`, `invalid_with_stmt_indent`,
+   `invalid_with_stmt`, `invalid_try_stmt`, `invalid_match_stmt`): сами
+   блочные выражения доходят до generic `invalid_block` и выдали бы
+   «expected an indented block» вместо «…after 'if' statement»
+   (регрессия `test_exceptions`). Там же — `invalid_elif_stmt` первой
+   альтернативой `elif_expr` (зеркало `elif_stmt`; пробел был и раньше,
+   но стал наблюдаемым). `for`/`while`/`def`/`class` значения не дают —
+   `..` после них SyntaxError.
 
-**Тесты:** `Lib/test/test_funnypy_pipe.py`, класс `PipeValueTests`
+**Тесты:** `Lib/test/test_funnypy_pipe.py`, классы `PipeValueTests`
+(14 тестов) и `BlockValueStandaloneTests`/`BlockValueStandaloneSyntaxTests`
 (14 тестов); регрессии — `test_exceptions`/`test_grammar`/`test_syntax`/
 `test_patma`/`test_compile`/`test_codeop`/`test_tokenize` и смежные наборы.
 
