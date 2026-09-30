@@ -258,6 +258,157 @@ class MatchDefAstTests(unittest.TestCase):
         self.assertEqual(subject.id, "x")
 
 
+class MatchDefAnonTests(unittest.TestCase):
+    """`match def(…)` without a name, in the statement positions of R2."""
+
+    def test_assignment_names_the_function(self):
+        f = match def(x, y):
+            case [head, *rest], y:
+                ("first", head, rest)
+            case [], y:
+                ("empty", y)
+        self.assertEqual(f.__name__, "f")
+        self.assertEqual(f([1, 2, 3], 0), ("first", 1, [2, 3]))
+        self.assertEqual(f([], 5), ("empty", 5))
+
+    def test_assignment_no_match_raises(self):
+        f = match def(x):
+            case 0:
+                "zero"
+        with self.assertRaises(MatchError):
+            f(1)
+
+    def test_return_position(self):
+        def make(k):
+            return match def(x):
+                case 0:
+                    k
+                case n:
+                    n + k
+        g = make(100)
+        self.assertEqual(g.__name__, "<lambda>")
+        self.assertEqual(g(0), 100)
+        self.assertEqual(g(5), 105)
+
+    def test_standalone_expression_statement(self):
+        # Defines an anonymous function and discards it; must not raise.
+        namespace = {}
+        exec("match def(x):\n    case 1:\n        'one'\n", namespace)
+        self.assertIn("<lambda>", namespace)
+        self.assertEqual(namespace["<lambda>"](1), "one")
+
+    def test_rhs_on_next_line(self):
+        h =
+            match def(x):
+                case n:
+                    n * 2
+        self.assertEqual(h.__name__, "h")
+        self.assertEqual(h(21), 42)
+
+    def test_closure(self):
+        def outer(k):
+            return match def(x):
+                case n:
+                    n + k
+        self.assertEqual(outer(10)(5), 15)
+
+    def test_recursion_through_target_name(self):
+        fib = match def(n):
+            case 0:
+                0
+            case 1:
+                1
+            case n:
+                fib(n - 1) + fib(n - 2)
+        self.assertEqual(fib(10), 55)
+
+    def test_return_annotation(self):
+        f = match def(x) -> int:
+            case n:
+                n + 1
+        self.assertEqual(f.__annotations__, {"return": int})
+        self.assertEqual(f(1), 2)
+
+    def test_parameter_annotations_and_defaults(self):
+        f = match def(x: int, y: str = "d"):
+            case a, b:
+                (a, b)
+        self.assertEqual(f.__annotations__, {"x": int, "y": str})
+        self.assertEqual(f(1), (1, "d"))
+
+    def test_hole_filler(self):
+        seen = []
+
+        def call_it(fn):
+            seen.append(fn(7))
+
+        call_it(..) match def(x):
+            case 0:
+                "zero"
+            case n:
+                "n=" + str(n)
+        self.assertEqual(seen, ["n=7"])
+
+    def test_pipeline_stage_filler(self):
+        seen = []
+
+        def apply(fn, xs):
+            return [fn(x) for x in xs]
+
+        [1, 2, 3]
+        ..apply(..) match def(x):
+            case n:
+                seen.append(n * n)
+        self.assertEqual(seen, [1, 4, 9])
+
+    def test_ast_shape(self):
+        tree = ast.parse("f = match def(x):\n    case 1:\n        'a'\n")
+        fn = tree.body[0]
+        self.assertIsInstance(fn, ast.FunctionDef)
+        self.assertEqual(fn.name, "f")
+        self.assertIsInstance(fn.body[0], ast.Return)
+        self.assertIsInstance(fn.body[0].value, ast.MatchExpr)
+
+    def test_ast_anonymous_name(self):
+        tree = ast.parse(
+            "def g():\n    return match def(x):\n        case 1:\n            'a'\n"
+        )
+        fn = tree.body[0].body[0]
+        self.assertIsInstance(fn, ast.FunctionDef)
+        self.assertEqual(fn.name, "<lambda>")
+        self.assertIsInstance(tree.body[0].body[1], ast.Return)
+
+
+class MatchDefAnonSyntaxTests(unittest.TestCase):
+
+    def test_star_args_rejected(self):
+        check_syntax_error(
+            self,
+            "f = match def(*args):\n    case _: pass\n",
+            "match def requires plain positional parameters")
+
+    def test_keyword_only_rejected(self):
+        check_syntax_error(
+            self,
+            "f = match def(*, k):\n    case _: pass\n",
+            "match def requires plain positional parameters")
+
+    def test_no_parameters_rejected(self):
+        check_syntax_error(
+            self,
+            "f = match def():\n    case _: pass\n",
+            "match def requires at least one parameter")
+
+    def test_return_position_rejects_kwargs(self):
+        check_syntax_error(
+            self,
+            "def g():\n    return match def(**kw):\n        case _: pass\n",
+            "match def requires plain positional parameters")
+
+    def test_requires_at_least_one_case(self):
+        check_syntax_error(self, "f = match def(x):\n    pass\n")
+
+
 class MatchDefSyntaxTests(unittest.TestCase):
 
     def test_star_args_rejected(self):
@@ -331,6 +482,20 @@ class MatchDefRegressionTests(unittest.TestCase):
             case 2:
                 "hello"
         self.assertEqual(s, "hello")
+
+    def test_named_form_keeps_its_name(self):
+        match def named(x):
+            case n:
+                n
+        self.assertEqual(named.__name__, "named")
+
+    def test_anonymous_assignment_does_not_leak_a_name(self):
+        # `f = match def(…)` names the function after the target only.
+        f = match def(x):
+            case n:
+                n
+        self.assertEqual(f.__name__, "f")
+        self.assertNotIn("<lambda>", globals())
 
 
 if __name__ == "__main__":
