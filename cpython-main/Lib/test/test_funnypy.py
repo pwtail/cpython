@@ -192,11 +192,11 @@ class MatchExprTests(unittest.TestCase):
                 "other"
         self.assertEqual(s, "one")
 
-    def test_no_match_is_none(self):
-        s = match 5:
-            case 1:
-                "one"
-        self.assertIsNone(s)
+    def test_no_match_raises(self):
+        with self.assertRaises(MatchError):
+            s = match 5:
+                case 1:
+                    "one"
 
     def test_guard(self):
         u = match (2, 3):
@@ -208,6 +208,7 @@ class MatchExprTests(unittest.TestCase):
         match (1, 2):
             case (a, b):
                 pass
+            case _: pass
         self.assertEqual((a, b), (1, 2))
 
     def test_default_case(self):
@@ -218,13 +219,13 @@ class MatchExprTests(unittest.TestCase):
                 "default"
         self.assertEqual(v, "default")
 
-    def test_guarded_default_falls_through_to_none(self):
-        v = match 9:
-            case 1:
-                "one"
-            case _ if False:
-                "never"
-        self.assertIsNone(v)
+    def test_guarded_default_raises(self):
+        with self.assertRaises(MatchError):
+            v = match 9:
+                case 1:
+                    "one"
+                case _ if False:
+                    "never"
 
     def test_body_without_trailing_expression_is_none(self):
         w = match 1:
@@ -268,7 +269,8 @@ class MatchExprTests(unittest.TestCase):
                     "five"
             y
         self.assertEqual(fn(5), "five")
-        self.assertIsNone(fn(6))
+        with self.assertRaises(MatchError):
+            fn(6)
 
     def test_nested_match_expression(self):
         s = match 1:
@@ -297,6 +299,7 @@ class MatchExprTests(unittest.TestCase):
         match 3:
             case 3:
                 result = "stmt"
+            case _: pass
         self.assertEqual(result, "stmt")
 
     def test_match_is_still_a_valid_name(self):

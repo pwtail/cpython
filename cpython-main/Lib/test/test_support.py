@@ -897,6 +897,7 @@ class TestHashlibSupport(unittest.TestCase):
                 method_name = info.openssl.member_name
                 assert isinstance(method_name, str | None), method_name
                 return getattr(self._hashlib, method_name or "", None)
+            case _: pass
         fullname = info[implementation].fullname
         return self.try_import_attribute(fullname)
 

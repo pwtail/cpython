@@ -145,16 +145,26 @@ funnypy_lambda_stmt[asdl_stmt_seq*]:
             _PyPegen_new_identifier(p, "<lambda>"),
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
             body, NULL, NULL, NULL, NULL, EXTRA))) }
+    | n=NAME '=' "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_match_def_stmt(p, n->v.Name.id, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
+    | n=NAME '=' NEWLINE INDENT "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT DEDENT {
+        _PyPegen_funnypy_match_def_stmt(p, n->v.Name.id, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
+    | 'return' "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_lambda_return(p, _PyPegen_funnypy_match_def(
+            p, _PyPegen_new_identifier(p, "<lambda>"), (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA)) }
     | f=funnypy_lambda_def { (asdl_stmt_seq*)_PyPegen_singleton_seq(p, f) }
 
 # Shared rule: an anonymous function with a full suite and the synthetic name
-# "<lambda>" (used by lambdas and by the `..` placeholder def-filler).
+# "<lambda>" (used by lambdas, by the anonymous `match def`, and by the `..`
+# placeholder def-filler).
 funnypy_lambda_def[stmt_ty]:
     | 'def' '(' a=[params] ')' ':' body=block {
         CHECK(stmt_ty, _PyAST_FunctionDef(
             _PyPegen_new_identifier(p, "<lambda>"),
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
             body, NULL, NULL, NULL, NULL, EXTRA)) }
+    | "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_match_def(p, _PyPegen_new_identifier(p, "<lambda>"), (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
 
 # Funny Python: one pipeline stage `..call(...)` with an optional filler for
 # the `..` placeholder (a def lambda or an expression).  A bare stage never
@@ -225,6 +235,7 @@ compound_stmt[stmt_ty]:
     | &('for' | 'async') for_stmt
     | &'try' try_stmt
     | &'while' while_stmt
+    | &("match" 'def') funnypy_match_def
     | match_stmt
 
 # SIMPLE STATEMENTS
@@ -608,6 +619,12 @@ guard[expr_ty]: 'if' guard=named_expression { guard }
 match_expr[expr_ty]:
     | "match" subject=subject_expr ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyAST_MatchExpr(subject, cases, EXTRA) }
+
+# funnypy: a function defined by case clauses (multiple dispatch), e.g.
+# match def mufun(x, y, z): followed by case blocks dispatching on (x, y, z).
+funnypy_match_def[stmt_ty]:
+    | "match" 'def' n=NAME '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
+        _PyPegen_funnypy_match_def(p, n->v.Name.id, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
 
 patterns[pattern_ty]:
     | patterns[asdl_pattern_seq*]=open_sequence_pattern {

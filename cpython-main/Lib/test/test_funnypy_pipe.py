@@ -82,6 +82,7 @@ class PipeMatchTests(unittest.TestCase):
                 out.append("one")
             case 2:
                 out.append("two")
+            case _: pass
         self.assertEqual(out, ["two"])
 
     def test_stages_before_match(self):
@@ -267,6 +268,11 @@ class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_two_placeholders_with_def(self):
         check_syntax_error(self, "f(.., ..) def(): pass")
+
+    def test_bare_match_def_is_not_a_call(self):
+        # `match def` is the anonymous match-def introducer (R9).
+        check_syntax_error(self, "match def(x): pass")
+        check_syntax_error(self, "y = match def(x): pass")
 
     def test_ellipsis_call_unchanged(self):
         compile("f(...)", "<t>", "exec")

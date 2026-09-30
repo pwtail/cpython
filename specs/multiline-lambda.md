@@ -44,7 +44,7 @@ f =
 (`a = b = def(...):`), аннотированное присваивание и aug-assign не
 поддерживаются **для блочной формы**. Исключение — блок-аргумент вызова
 `callee def(…): suite` (statement и RHS с одиночной целью), см.
-`funny-python-pipeline`, R8.
+`funny-python-pipeline`, R10.
 
 Форма R6 (expression-позиции) — только тело-выражение, без suite:
 
@@ -84,9 +84,10 @@ statement-позициях (R2) всегда выигрывает блочная
   (`Parser/action_helpers.c`): принимает готовый `FunctionDef`, возвращает
   последовательность `[FunctionDef, Return(Name(<lambda>))]`.
 - **Точки правки грамматики:** отдельное правило `funnypy_lambda_stmt` с
-  четырьмя альтернативами (присваивание — в т.ч. `NAME '=' NEWLINE INDENT
-  'def' … DEDENT` для def на следующей строке — / `return` /
-  выражение-инструкция), подключённое как альтернатива в `statement`
+  четырьмя лямбда-альтернативами (присваивание — в т.ч. `NAME '=' NEWLINE
+  INDENT 'def' … DEDENT` для def на следующей строке — / `return` /
+  выражение-инструкция; правило также несёт match-def-альтернативы R9 — см.
+  `funny-python-match-def`), подключённое как альтернатива в `statement`
   (между `compound_stmt` и `simple_stmts`) и в `statement_newline`. Параметры — существующее правило
   `params`. Почему не альтернативы внутри `assignment`/`return_stmt`:
   формы несут блок (NEWLINE…DEDENT), а `simple_stmts` требует финальный

@@ -63,4 +63,5 @@ def fstring(template):
                 value = convert(value, conversion)
                 value = format(value, format_spec)
                 parts.append(value)
+            case _: pass
     return "".join(parts)

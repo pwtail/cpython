@@ -317,6 +317,8 @@ asdl_seq *_PyPegen_singleton_seq(Parser *, void *);
 asdl_seq *_PyPegen_seq_insert_in_front(Parser *, void *, asdl_seq *);
 asdl_seq *_PyPegen_seq_append_to_end(Parser *, asdl_seq *, void *);
 stmt_ty _PyPegen_funnypy_match_assign(Parser *, pattern_ty, expr_ty);
+stmt_ty _PyPegen_funnypy_match_def(Parser *, identifier, arguments_ty, expr_ty, asdl_match_case_seq *, int, int, int, int, PyArena *);
+asdl_stmt_seq *_PyPegen_funnypy_match_def_stmt(Parser *, identifier, arguments_ty, expr_ty, asdl_match_case_seq *, int, int, int, int, PyArena *);
 asdl_stmt_seq *_PyPegen_funnypy_lambda_return(Parser *, stmt_ty);
 void *_PyPegen_funnypy_stage_def(Parser *, expr_ty, stmt_ty);
 expr_ty _PyPegen_funnypy_require_hole_call(Parser *, expr_ty);

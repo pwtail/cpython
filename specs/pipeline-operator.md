@@ -10,7 +10,7 @@ parent: funny-python-architecture
 
 Оператор `..` в трёх ролях: пайплайн значения в вызов, placeholder для
 statement-лямбды/выражения, pipe-форма `match`. Покрывает требование R4 из
-`funny-python-goal`. Здесь же — смежная форма R8, блок-аргумент без `(..)`:
+`funny-python-goal`. Здесь же — смежная форма R10, блок-аргумент без `(..)`:
 `run def(): …` использует ту же резолюцию филлера, что и placeholder.
 
 ## Syntax
@@ -29,10 +29,10 @@ square = def(x): return x ** 2
 run(..) def():         # без пайплайна: hole заполняется def или выражением
     print('Running')   # = def <lambda>(): print('Running'); run(<lambda>)
 
-run def():             # R8: неявный hole — def идёт аргументом вызова
+run def():             # R10: неявный hole — def идёт аргументом вызова
     print('Running')   # = run(..) def(): … = run(<lambda>)
 
-res = run def():       # R8 в RHS присваивания (одиночная цель)
+res = run def():       # R10 в RHS присваивания (одиночная цель)
     return 42          # = res = run(<lambda>)
 
 run(..) compute_x() + 1   # filler — любое выражение: = run(compute_x() + 1)
@@ -60,13 +60,17 @@ x                    # pipe-match: обычный compound match с piped-суб
   `..map` / `..myfunc(1, 2, ..)` затем `def(x): …`; выражение-заполнитель —
   только на той же строке. Ровно один placeholder на стейтмент, только в
   прямых позиционных аргументах внешнего вызова.
-- Неявный блок-аргумент (R8): `callee def(…): suite` — `callee` это голая
+- Неявный блок-аргумент (R10): `callee def(…): suite` — `callee` это голая
   ссылка (`primary`, не `Call`: имя, атрибут, subscript, …) или вызов с прямым
   `(..)`; `def` — на той же строке и становится единственным позиционным
   аргументом (голая ссылка) либо заполняет hole (вызов). Перенос строки между
   `callee` и `def` — не эта форма: `run` и `def(): …` остаются двумя
   statement'ами. `Call` без hole + def (`f(a) def(): …`) — SyntaxError.
   Позиции: statement и RHS присваивания с одиночной целью-`NAME`.
+  Голая ссылка `match` — не callee этой формы: `match def` — введение
+  match-def (R9), поэтому `match def(x): …` без `case` остаётся SyntaxError;
+  для функции с именем `match` пишут `(match) def(…): …` или
+  `match(..) def(…): …`.
 - `x ..match:` = `match x:`; имена связываются в текущей области. Стадии до
   `..match:` применяются по цепочке, итог — субъект match.
 
@@ -99,7 +103,7 @@ x                    # pipe-match: обычный compound match с piped-суб
     placeholder-стейтменты падают быстро, не перетягивая farthest-token на
     чужих синтаксических ошибках; регрессионный сигнал — `test_exceptions`
     на offset'ах), `funnypy_pipe_stmt` (pipe-match / pipeline / hole-def /
-    hole-expr), `funnypy_block_arg_stmt` (R8: statement + RHS, lookahead
+    hole-expr), `funnypy_block_arg_stmt` (R10: statement + RHS, lookahead
     `&'def'`). `funnypy_pipe_stmt` подключено в `statement` и
     `statement_newline`; `funnypy_block_arg_stmt` — только в `statement`
     (после `funnypy_pipe_stmt`), чтобы не задеть REPL.
@@ -109,7 +113,7 @@ x                    # pipe-match: обычный compound match с piped-суб
     голая ссылка → обёртка в вызов; `Call` без hole — откат),
     `stage_def`/`stage_expr`, `pipe_apply`/`pipeline`/`pipeline_match`
     (data-last сборка), `pipe_hole_def`/`pipe_hole_expr`,
-    `block_expr`/`block_assign` (R8: `[FunctionDef, Expr|Assign]`).
+    `block_expr`/`block_assign` (R10: `[FunctionDef, Expr|Assign]`).
   - `Python/symtable.c` — compile-ошибка на `Name("<pipe>")` в Load-контексте
     (незаполненный placeholder) с локацией через `SET_ERROR_LOCATION`.
 - **Ограничения v1 (проверено):**
@@ -128,7 +132,7 @@ x                    # pipe-match: обычный compound match с piped-суб
     и вешало `test_cmd_line_script`. Работают файлы, `-c` и Jupyter
     (ячейка исполняется exec-парсом; последнее выражение компилируется
     из уже готового AST).
-  - **Неявный блок-аргумент (R8) в терминальном REPL не работает**:
+  - **Неявный блок-аргумент (R10) в терминальном REPL не работает**:
     `funnypy_block_arg_stmt` подключён только в `statement`; exec-режим
     (файлы, `-c`, Jupyter) форму поддерживает, `compile(…, 'single')` —
     SyntaxError.
@@ -141,7 +145,7 @@ x                    # pipe-match: обычный compound match с piped-суб
   следующей строке, def/expr-filler, pipe-match (совпадение/несовпадение,
   стадии перед match), SyntaxError на незаполненный/вложенный/keyword hole,
   на `Call` без hole + def и на inline-`..`; неизменность Ellipsis `f(...)`
-  и распаковки. R8 — класс `BlockArgumentTests`: statement/RHS, атрибут и
+  и распаковки. R10 — класс `BlockArgumentTests`: statement/RHS, атрибут и
   subscript, def с параметрами, эквивалентность `(..)`, неявный return
   результата вызова, two-statement поведение при переносе строки, негативы
   `f(a) def()`, вложенный и двойной hole.

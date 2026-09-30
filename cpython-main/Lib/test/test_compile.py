@@ -1670,6 +1670,7 @@ class TestSpecifics(unittest.TestCase):
                     {name_3: name_4 async for name_2 in name_5}
                 case []:
                     pass
+                case _: pass
             [[]]
 
     def test_globals_dict_subclass(self):

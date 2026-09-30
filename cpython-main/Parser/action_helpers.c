@@ -2119,7 +2119,9 @@ _PyPegen_checked_from_import(Parser *p, asdl_seq *dots, expr_ty module_name,
 asdl_stmt_seq *
 _PyPegen_funnypy_lambda_return(Parser *p, stmt_ty function_def)
 {
-    assert(function_def != NULL);
+    if (function_def == NULL) {
+        return NULL;
+    }
     assert(function_def->kind == FunctionDef_kind);
     expr_ty ref = _PyAST_Name(
         function_def->v.FunctionDef.name, Load,
@@ -2221,6 +2223,120 @@ _PyPegen_funnypy_match_assign(Parser *p, pattern_ty pattern, expr_ty value)
     }
     return _PyAST_Match(
         value, cases, lineno, col_offset, end_lineno, end_col_offset, p->arena);
+}
+
+/* Funny Python: `match def name(params):` with case blocks — a function that
+   dispatches on the tuple of its positional arguments.  Desugars into
+   `def name(params): return match (params...): cases`; the cases come from the
+   grammar.  Shared by the named form (name = the target) and the anonymous
+   form (name = "<lambda>").  Non-positional parameters have no fixed-arity
+   subject, so they are rejected with a clear error instead of being silently
+   ignored. */
+stmt_ty
+_PyPegen_funnypy_match_def(Parser *p, identifier name, arguments_ty args,
+                           expr_ty returns, asdl_match_case_seq *cases,
+                           int lineno, int col_offset,
+                           int end_lineno, int end_col_offset,
+                           PyArena *arena)
+{
+    if (name == NULL || args == NULL || cases == NULL) {
+        return NULL;
+    }
+
+    if (args->vararg != NULL || args->kwarg != NULL ||
+        asdl_seq_LEN(args->kwonlyargs) > 0) {
+        _PyPegen_raise_error(
+            p, PyExc_SyntaxError, 0,
+            "match def requires plain positional parameters "
+            "(no *args, **kwargs or keyword-only parameters)");
+        return NULL;
+    }
+    Py_ssize_t nposonly = asdl_seq_LEN(args->posonlyargs);
+    Py_ssize_t npos = asdl_seq_LEN(args->args);
+    Py_ssize_t nargs = nposonly + npos;
+    if (nargs == 0) {
+        _PyPegen_raise_error(
+            p, PyExc_SyntaxError, 0,
+            "match def requires at least one parameter");
+        return NULL;
+    }
+
+    /* Subject: the positional parameter values, in declaration order.  A
+       single parameter is used directly (like subject_expr); several form a
+       tuple. */
+    expr_ty subject;
+    if (nargs == 1) {
+        arg_ty only = nposonly
+            ? asdl_seq_GET(args->posonlyargs, 0)
+            : asdl_seq_GET(args->args, 0);
+        subject = _PyAST_Name(
+            only->arg, Load, lineno, col_offset,
+            end_lineno, end_col_offset, arena);
+    }
+    else {
+        asdl_expr_seq *elts = NULL;
+        for (Py_ssize_t i = 0; i < nargs; i++) {
+            arg_ty a = i < nposonly
+                ? asdl_seq_GET(args->posonlyargs, i)
+                : asdl_seq_GET(args->args, i - nposonly);
+            expr_ty e = _PyAST_Name(
+                a->arg, Load, lineno, col_offset,
+                end_lineno, end_col_offset, arena);
+            if (e == NULL) {
+                return NULL;
+            }
+            elts = (asdl_expr_seq *)_PyPegen_seq_append_to_end(
+                p, elts ? (asdl_seq *)elts : NULL, e);
+            if (elts == NULL) {
+                return NULL;
+            }
+        }
+        subject = _PyAST_Tuple(
+            elts, Load, lineno, col_offset,
+            end_lineno, end_col_offset, arena);
+    }
+    if (subject == NULL) {
+        return NULL;
+    }
+
+    expr_ty match_expr = _PyAST_MatchExpr(
+        subject, cases, lineno, col_offset,
+        end_lineno, end_col_offset, arena);
+    if (match_expr == NULL) {
+        return NULL;
+    }
+    stmt_ty ret = _PyAST_Return(
+        match_expr, lineno, col_offset,
+        end_lineno, end_col_offset, arena);
+    if (ret == NULL) {
+        return NULL;
+    }
+    asdl_stmt_seq *body = (asdl_stmt_seq *)_PyPegen_singleton_seq(p, ret);
+    if (body == NULL) {
+        return NULL;
+    }
+    return _PyAST_FunctionDef(
+        name, args, body, NULL, returns, NULL, NULL,
+        lineno, col_offset, end_lineno, end_col_offset, arena);
+}
+
+/* Statement-position wrapper for `match def`: `_PyPegen_funnypy_match_def`
+   returns NULL both on a raised error and on allocation failure, so it must
+   not be handed straight to _PyPegen_singleton_seq (which asserts non-NULL). */
+asdl_stmt_seq *
+_PyPegen_funnypy_match_def_stmt(Parser *p, identifier name, arguments_ty args,
+                                expr_ty returns, asdl_match_case_seq *cases,
+                                int lineno, int col_offset,
+                                int end_lineno, int end_col_offset,
+                                PyArena *arena)
+{
+    stmt_ty def = _PyPegen_funnypy_match_def(
+        p, name, args, returns, cases,
+        lineno, col_offset, end_lineno, end_col_offset, arena);
+    if (def == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, def);
 }
 
 /* Funny Python `..` pipeline / placeholder support. */
@@ -2504,9 +2620,21 @@ funnypy_hoist_def(Parser *p, stmt_ty def, stmt_ty stmt)
     return (asdl_stmt_seq *)_PyPegen_seq_insert_in_front(p, def, (asdl_seq *)out);
 }
 
+/* A bare `match` callee is the anonymous match-def introducer (R9), not a
+   call: `match def(x): …` must not be reinterpreted as `match(<lambda>)`. */
+static int
+funnypy_is_bare_match(expr_ty e)
+{
+    return e->kind == Name_kind &&
+           _PyUnicode_EqualToASCIIString(e->v.Name.id, "match");
+}
+
 asdl_stmt_seq *
 _PyPegen_funnypy_block_expr(Parser *p, expr_ty e, stmt_ty def)
 {
+    if (funnypy_is_bare_match(e)) {
+        return NULL;
+    }
     expr_ty call = funnypy_fill_def(p, e);
     if (call == NULL) {
         return NULL;
@@ -2520,6 +2648,9 @@ _PyPegen_funnypy_block_expr(Parser *p, expr_ty e, stmt_ty def)
 asdl_stmt_seq *
 _PyPegen_funnypy_block_assign(Parser *p, expr_ty target, expr_ty e, stmt_ty def)
 {
+    if (funnypy_is_bare_match(e)) {
+        return NULL;
+    }
     expr_ty call = funnypy_fill_def(p, e);
     if (call == NULL) {
         return NULL;

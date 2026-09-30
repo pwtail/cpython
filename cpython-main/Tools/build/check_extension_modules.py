@@ -435,6 +435,7 @@ _MISSING_STDLIB_MODULE_MESSAGES = {pprint.pformat(messages)}
                             modinfo = ModuleInfo(items[0], state)
                             logger.debug("Found %s in %s", modinfo, setup_file)
                             yield modinfo
+                    case _: pass
 
     def get_spec(self, modinfo: ModuleInfo) -> ModuleSpec:
         """Get ModuleSpec for builtin or extension module"""

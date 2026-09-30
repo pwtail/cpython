@@ -478,6 +478,7 @@ class TimeRE(dict):
                 case 'e':
                     nonlocal day_e_in_format
                     day_e_in_format = True
+                case _: pass
             return self[directive]
         format = re_sub(r'%[-_0^#]*[0-9]*([OE]?[:\\]?.?)', repl, format)
         if not year_in_format:

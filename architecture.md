@@ -47,6 +47,15 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
 - `funny-python-match-expression` — depends-on: грамматика, AST
   (`Parser/Python.asdl` → `MatchExpr`), codegen (`codegen_pattern*`),
   symtable и валидация AST.
+- `funny-python-destructive-match` — depends-on: codegen (`Python/codegen.c`,
+  `codegen_match_inner` / `codegen_match_expr`). AST и грамматику не трогает;
+  задаёт исход всех форм match при отсутствии совпадения (R8). Потребовал
+  `case _: pass`-адаптации неисчерпывающих match в stdlib.
+- `funny-python-match-def` — depends-on: грамматика (`funnypy_match_def` для
+  именованной формы; альтернативы в `funnypy_lambda_def`/`funnypy_lambda_stmt`
+  для анонимной) и парсер-хелпер (`Parser/action_helpers.c`,
+  `Parser/pegen.h`). AST/codegen не трогает: десахарит в `FunctionDef` +
+  `Return(MatchExpr)`; no-match наследует R8.
 - `funny-python-line-continuation` — depends-on: токенизатор
   (`Parser/lexer/lexer.c`), грамматика (`funnypy_assign_stmt`). Рантайм и
   `codegen.c` не трогает.
@@ -54,11 +63,12 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
 ## Invariants
 
 - **Суперсет (R1) проверяется тестами:** вся штатная `Lib/test` CPython должна
-  проходить после каждой фичи. Единственное исключение — правило R5
-  (неявный return): тесты, кодирующие старое поведение хвостового выражения
-  или старого байткода, адаптируются явно и перечислены в
-  `funny-python-implicit-return`; молчаливых расхождений быть не должно.
-  Новая семантика закреплена `Lib/test/test_funnypy.py`.
+  проходить после каждой фичи. Два документированных исключения:
+  R5 (неявный return — адаптированные тесты перечислены в
+  `funny-python-implicit-return`) и R8 (деструктивный match — неисчерпывающие
+  match в stdlib получили `case _: pass`, тесты fall-through переписаны на
+  `MatchError`, см. `funny-python-destructive-match`). Молчаливых расхождений
+  быть не должно; новая семантика закреплена `Lib/test/test_funnypy*.py`.
 - **Минимальный дифф:** изменения только в перечисленных выше файлах + новые
   тесты; правки смежной механики (tokenizer, ceval) — только с отдельным
   обоснованием в спеке фичи. Токенизатор задействован однажды — leading-dot
