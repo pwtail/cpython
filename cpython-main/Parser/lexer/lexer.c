@@ -410,6 +410,47 @@ tok_continuation_line(struct tok_state *tok) {
     return c;
 }
 
+/* Funny Python: whether the next physical line is a leading-dot continuation
+   (its first non-space character is `.` followed by an identifier start).
+   Never peeks for interactive tokenizers: reading the next line there would
+   prompt the user. */
+static int
+tok_next_line_starts_with_dot(struct tok_state *tok)
+{
+    if (tok->prompt != NULL || tok->readline != NULL) {
+        return 0;
+    }
+    const char *p = tok->cur;
+    if (tok->fp == NULL) {
+        /* String/UTF-8 tokenizer: the whole input is already in tok->buf. */
+        while (*p == ' ' || *p == '\t' || *p == '\014') {
+            p++;
+        }
+        if (*p != '.') {
+            return 0;
+        }
+        p++;
+        return is_potential_identifier_start(*p);
+    }
+    /* File tokenizer: buffer the next line on demand, then peek. */
+    if (tok->cur == tok->inp) {
+        if (!tok->underflow(tok)) {
+            return 0;
+        }
+    }
+    while (p < tok->inp && (*p == ' ' || *p == '\t' || *p == '\014')) {
+        p++;
+    }
+    if (p >= tok->inp || *p != '.') {
+        return 0;
+    }
+    p++;
+    if (p >= tok->inp) {
+        return 0;
+    }
+    return is_potential_identifier_start(*p);
+}
+
 static int
 maybe_raise_syntax_error_for_string_prefixes(struct tok_state *tok,
                                              int saw_b, int saw_r, int saw_u,
@@ -526,7 +567,11 @@ tok_get_normal_mode(struct tok_state *tok, tokenizer_mode* current_tok, struct t
             /* We can't jump back right here since we still
                may need to skip to the end of a comment */
         }
-        if (!blankline && tok->level == 0) {
+        if (tok->at_line_continuation) {
+            /* Leading-dot continuation: this line's indentation is ignored. */
+            tok->at_line_continuation = 0;
+        }
+        else if (!blankline && tok->level == 0) {
             col = cont_line_col ? cont_line_col : col;
             altcol = cont_line_col ? cont_line_col : altcol;
             if (col == tok->indstack[tok->indent]) {
@@ -779,6 +824,11 @@ tok_get_normal_mode(struct tok_state *tok, tokenizer_mode* current_tok, struct t
             p_start = tok->start;
             p_end = tok->cur;
             return MAKE_TOKEN(NL);
+        }
+        /* Funny Python: a line starting with `.name` continues this line. */
+        if (tok_next_line_starts_with_dot(tok)) {
+            tok->at_line_continuation = 1;
+            goto nextline;
         }
         p_start = tok->start;
         p_end = tok->cur - 1; /* Leave '\n' out of the string */

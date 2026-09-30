@@ -111,6 +111,7 @@ struct tok_state {
     int decoding_erred;         /* whether erred in decoding  */
     char *encoding;         /* Source encoding. */
     int cont_line;          /* whether we are in a continuation line. */
+    int at_line_continuation;  /* leading-dot continuation: skip this line's indent */
     const char* line_start;     /* pointer to start of current line */
     const char* multi_line_start; /* pointer to start of first line of
                                      a single line or multi line string

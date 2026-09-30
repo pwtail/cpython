@@ -45,6 +45,7 @@ _PyTokenizer_tok_new(void)
     tok->enc = NULL;
     tok->encoding = NULL;
     tok->cont_line = 0;
+    tok->at_line_continuation = 0;
     tok->filename = NULL;
     tok->module = NULL;
     tok->decoding_readline = NULL;
