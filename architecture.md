@@ -59,6 +59,11 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
 - `funny-python-line-continuation` — depends-on: токенизатор
   (`Parser/lexer/lexer.c`), грамматика (`funnypy_assign_stmt`). Рантайм и
   `codegen.c` не трогает.
+- `funny-python-if-with-try-expr` — depends-on: грамматика, AST
+  (`Parser/Python.asdl` → `IfExpr`/`WithExpr`/`TryExpr`), codegen
+  (обобщение `codegen_match_expr_body` → `codegen_block_value`; по образцу
+  statement-`codegen_if`/`codegen_with`/`codegen_try_*`), symtable и
+  валидация AST; расширяет filler оператора `..` из `funny-python-pipeline`.
 
 ## Invariants
 

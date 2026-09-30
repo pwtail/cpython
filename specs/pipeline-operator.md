@@ -37,6 +37,11 @@ res = run def():       # R10 в RHS присваивания (одиночная
 
 run(..) compute_x() + 1   # filler — любое выражение: = run(compute_x() + 1)
 
+run(..) try:              # filler — блок-выражение (R11)
+    'smth'               # = run(try: 'smth' except: 'other')
+except:
+    'other'
+
 x                    # pipe-match: обычный compound match с piped-субъектом
 ..match:
     case 1:
@@ -58,8 +63,9 @@ x                    # pipe-match: обычный compound match с piped-суб
   `def(параметры): <suite>` (statement-лямбда, см. `funny-python-lambda`) или
   выражением. def-filler может идти со следующей строки (с отступом) —
   `..map` / `..myfunc(1, 2, ..)` затем `def(x): …`; выражение-заполнитель —
-  только на той же строке. Ровно один placeholder на стейтмент, только в
-  прямых позиционных аргументах внешнего вызова.
+  только на той же строке (включая блок-выражения `if`/`with`/`try`, R11).
+  Ровно один placeholder на стейтмент, только в прямых позиционных
+  аргументах внешнего вызова.
 - Неявный блок-аргумент (R10): `callee def(…): suite` — `callee` это голая
   ссылка (`primary`, не `Call`: имя, атрибут, subscript, …) или вызов с прямым
   `(..)`; `def` — на той же строке и становится единственным позиционным
@@ -117,9 +123,9 @@ x                    # pipe-match: обычный compound match с piped-суб
   - `Python/symtable.c` — compile-ошибка на `Name("<pipe>")` в Load-контексте
     (незаполненный placeholder) с локацией через `SET_ERROR_LOCATION`.
 - **Ограничения v1 (проверено):**
-  - def-filler всегда последняя стадия: блок съедает финальный NEWLINE/DEDENT,
-    разделителя для следующей стадии нет. Стадии после def-filler'а —
-    SyntaxError.
+  - def-filler и filler-блок-выражение (`if`/`with`/`try`, R11) всегда
+    последние: блок съедает финальный NEWLINE/DEDENT, разделителя для
+    следующей стадии нет. Стадии после такого filler'а — SyntaxError.
   - Первая величина пайплайна — на своей строке; hole-подстановка — целостный
     стейтмент, дальше пайплайн не продолжается.
   - Hole резолвится только в прямых позиционных аргументах внешнего вызова;
@@ -142,10 +148,12 @@ x                    # pipe-match: обычный compound match с piped-суб
     NEWLINE после блока).
 - **Тесты:** `Lib/test/test_funnypy_pipe.py`: примеры из запроса, цепочка,
   bare-звено (в т.ч. с def-filler той же и следующей строкой), hole-filler на
-  следующей строке, def/expr-filler, pipe-match (совпадение/несовпадение,
-  стадии перед match), SyntaxError на незаполненный/вложенный/keyword hole,
-  на `Call` без hole + def и на inline-`..`; неизменность Ellipsis `f(...)`
-  и распаковки. R10 — класс `BlockArgumentTests`: statement/RHS, атрибут и
-  subscript, def с параметрами, эквивалентность `(..)`, неявный return
-  результата вызова, two-statement поведение при переносе строки, негативы
-  `f(a) def()`, вложенный и двойной hole.
+  следующей строке, def/expr-filler, def/expr/блок-выражение-filler
+  (`if`/`with`/`try`, класс `BlockFillerTests`), pipe-match
+  (совпадение/несовпадение, стадии перед match), SyntaxError на
+  незаполненный/вложенный/keyword hole, на `Call` без hole + def и на
+  inline-`..`; неизменность Ellipsis `f(...)` и распаковки. R10 — класс
+  `BlockArgumentTests`: statement/RHS, атрибут и subscript, def с параметрами,
+  эквивалентность `(..)`, неявный return результата вызова, two-statement
+  поведение при переносе строки, негативы `f(a) def()`, вложенный и двойной
+  hole.

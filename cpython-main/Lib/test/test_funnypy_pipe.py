@@ -234,7 +234,123 @@ class BlockArgumentTests(unittest.TestCase):
         self.assertIs(value, f)
 
 
+class BlockFillerTests(unittest.TestCase):
+    """if/with/try expressions as `..` fillers (R8)."""
+
+    def test_hole_call_try_filler(self):
+        seen = []
+        take = def(v): seen.append(v)
+        take(..) try:
+            "ok"
+        except:
+            "exc"
+        self.assertEqual(seen, ["ok"])
+
+    def test_hole_call_try_except_path(self):
+        seen = []
+        take = def(v): seen.append(v)
+        take(..) try:
+            raise ValueError("boom")
+        except ValueError:
+            "caught"
+        self.assertEqual(seen, ["caught"])
+
+    def test_hole_call_if_filler(self):
+        seen = []
+        take = def(v): seen.append(v)
+        take(..) if True:
+            "yes"
+        else:
+            "no"
+        self.assertEqual(seen, ["yes"])
+
+    def test_hole_call_with_filler(self):
+        seen = []
+        take = def(v): seen.append(v)
+        take(..) with open("/dev/null"):
+            "read"
+        self.assertEqual(seen, ["read"])
+
+    def test_stage_try_filler_is_data_last(self):
+        seen = []
+        take = def(v, data): seen.append((v, data))
+        5
+        ..take(..) try:
+            "stage"
+        except:
+            "e"
+        self.assertEqual(seen, [("stage", 5)])
+
+    def test_stage_if_filler(self):
+        seen = []
+        take = def(v, data): seen.append((v, data))
+        7
+        ..take(..) if True:
+            "yes"
+        else:
+            "no"
+        self.assertEqual(seen, [("yes", 7)])
+
+    def test_stage_with_filler(self):
+        seen = []
+        take = def(v, data): seen.append((v, data))
+        9
+        ..take(..) with open("/dev/null"):
+            "w"
+        self.assertEqual(seen, [("w", 9)])
+
+    def test_stage_try_exception_path_filler(self):
+        seen = []
+        take = def(v, data): seen.append((v, data))
+        5
+        ..take(..) try:
+            raise ValueError("boom")
+        except ValueError:
+            "caught"
+        self.assertEqual(seen, [("caught", 5)])
+
+    def test_hole_call_block_filler_in_function(self):
+        seen = []
+
+        def f(x):
+            take = def(v): seen.append(v)
+            take(..) try:
+                x + 1
+            except:
+                "bad"
+
+        f(1)
+        self.assertEqual(seen, [2])
+
+    def test_hole_call_with_suppressing_filler(self):
+        seen = []
+        take = def(v): seen.append(v)
+
+        class Suppress:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *args):
+                return True
+
+        take(..) with Suppress():
+            raise ValueError("boom")
+        self.assertEqual(seen, [None])
+
+
 class PipeSyntaxErrorTests(unittest.TestCase):
+
+    def test_stage_after_block_filler_rejected(self):
+        # A block filler (like a def-filler) consumes the trailing NEWLINE,
+        # so no further stage can follow it.
+        check_syntax_error(self, textwrap.dedent("""\
+            5
+            ..print(..) try:
+                'a'
+            except:
+                'b'
+            ..print
+        """))
 
     def test_unfilled_placeholder_in_assignment(self):
         check_syntax_error(self, "x = f(..)")

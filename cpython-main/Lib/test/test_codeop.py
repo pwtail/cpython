@@ -122,6 +122,9 @@ class CodeopTests(unittest.TestCase):
         ai("(a,b,(")
         ai("(a,b,(")
         ai("a = (")
+        # funnypy: `a =` may continue on the next (indented) line, so it is an
+        # incomplete prefix rather than invalid (specs/line-continuation.md).
+        ai("a = ")
         ai("a = {")
         ai("b + {")
 
@@ -257,7 +260,9 @@ class CodeopTests(unittest.TestCase):
         ai("a b @")
         ai("a ** @")
 
-        ai("a = ")
+        # funnypy: `a = ` is an incomplete prefix (the RHS may start on the next
+        # line, see specs/line-continuation.md) and is asserted in
+        # test_incomplete instead.
         ai("a = 9 +")
 
         ai("def x():\n\npass\n")

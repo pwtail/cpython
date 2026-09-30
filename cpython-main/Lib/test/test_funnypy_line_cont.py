@@ -20,6 +20,54 @@ class NextLineRHSTests(unittest.TestCase):
         self.assertEqual(f(4), 5)
         self.assertEqual(f.__name__, "f")
 
+    def test_try_block_on_next_line(self):
+        r =
+            try:
+                raise ValueError("boom")
+            except ValueError:
+                "caught"
+        self.assertEqual(r, "caught")
+
+    def test_if_block_on_next_line(self):
+        r =
+            if True:
+                "yes"
+            else:
+                "no"
+        self.assertEqual(r, "yes")
+
+    def test_with_block_on_next_line(self):
+        r =
+            with open("/dev/null") as fh:
+                "read"
+        self.assertEqual(r, "read")
+
+    def test_block_on_next_line_in_function(self):
+        def f():
+            v =
+                try:
+                    "func"
+                except:
+                    "no"
+            return v
+        self.assertEqual(f(), "func")
+
+    def test_multiple_targets_with_block_on_next_line(self):
+        a = b =
+            try:
+                "both"
+            except:
+                "no"
+        self.assertEqual((a, b), ("both", "both"))
+
+    def test_expression_and_lambda_on_next_line_unchanged(self):
+        f =
+            1 + 2
+        g =
+            def(x):
+                return x * 2
+        self.assertEqual((f, g(3)), (3, 6))
+
 
 class LeadingDotTests(unittest.TestCase):
 

@@ -455,6 +455,58 @@ inline в `codegen_function_body`; `compiler_unit` имеет дополните
 исключаются из сравнения. Новая семантика закреплена
 `Lib/test/test_funnypy.py`.
 
+## Фаза 7. `if`/`with`/`try` как выражения (R11) — выполнено
+
+Спека: `specs/if-with-try-expression.md`. Значение — последнее выражение
+выбранной ветки (`None`, если ветка не заканчивается выражением);
+`for`/`while`/`class` выражениями не становятся; клаузы — сиблинги
+(дедент после тела), как в statement-формах.
+
+1. **AST.** Новые узлы `IfExpr(test, body, orelse)`,
+   `WithExpr(items, body)`, `TryExpr(body, handlers, orelse, finalbody)` в
+   `Parser/Python.asdl` (категория `expr`, поля — как у `If`/`With`/`Try`);
+   `make regen-ast`.
+2. **Грамматика.** `if_expr`/`elif_expr`/`with_expr`/`try_expr`
+   (переиспользуют `block`/`else_block`/`except_block`/`finally_block`) в
+   `expression` + statement-уровневые `(star_targets '=')+ …`
+   (`if_expr_stmt`/`with_expr_stmt`/`try_expr_stmt`) после `simple_stmts`;
+   `make regen-pegen`. `if_expr` обязан идти ПОСЛЕ `if_expression`:
+   pegen-валидатор сравнивает имена строковым префиксом
+   (`"if_expression".startswith("if_expr")`) и иначе считает тернарник
+   недостижимым (first sets не пересекаются). `elif` десахарится во
+   вложенный `IfExpr`, обёрнутый `Expr`-стейтментом в `orelse`.
+   **Filler `..`:** в `pipe_stage` блок-выражения подшли сами через
+   `v=star_expressions` (они теперь в `expression`); в `funnypy_pipe_stmt`
+   для hole-вызова (`f(..) if/with/try:`) добавлены явные альтернативы без
+   трейлинг-NEWLINE (его съедает блок). Filler-блок, как и def-filler,
+   терминирует statement.
+3. **Валидация/области видимости.** `validate_expr` (`Python/ast.c`) и
+   `symtable_visit_expr` (`Python/symtable.c`) — по образцу statement-форм;
+   в `validate_expr` нужны forward-declaration `validate_body` и прямой
+   `_validate_nonempty_seq` (макрос объявлен ниже).
+4. **Кодоген** (`Python/codegen.c`). `codegen_block_value` — обобщение
+   `codegen_match_expr_body` (им пользуются и match-expr, и новые ветки).
+   `codegen_if_expr` — `codegen_jump_if(..., 0)` на `orelse`, `None` без
+   `else`. `codegen_with_expr_inner` — зеркало `codegen_with_inner`;
+   значение тела сохраняется поверх `(exit_func, exit_self)` шаффлом
+   `SWAP 3; SWAP 2` (как в `codegen_unwind_fblock`); подавленное исключение
+   даёт `None`. `codegen_try_expr_except` — `SWAP 2` перед `POP_EXCEPT`
+   держит значение ниже prev-exception, `else` перекрывает тело;
+   `codegen_try_expr_finally` — тело `finally` нормального пути обёрнуто в
+   `COMPILE_FBLOCK_POP_VALUE` (иначе `return` внутри `finally` валит
+   `assert(STACK_LEVEL() == 0)` в `RETURN_VALUE`).
+5. **Позиции v1:** правая часть присваивания, filler `..`,
+   выражение-инструкция, `r =` + блок на следующей строке
+   (`funnypy_assign_stmt`). Дефер: `return`/`yield`/аргументы вызовов,
+   `async with`, `except*`, REPL.
+   `ast.unparse()` новых узлов молча выдаёт мусор (как и у `MatchExpr`).
+6. **Вложенный блок.** `if`/`with`/`try` в теле ветки — это statement и
+   значения не даёт (как в R5); вложенные блок-выражения проносят значение
+   через присваивание.
+
+**Тесты:** `Lib/test/test_funnypy_expr.py` (75 тестов); блок-filler'ы
+пайплайна — в `Lib/test/test_funnypy_pipe.py` (класс `BlockFillerTests`).
+
 ## Если что-то пошло не так
 
 - **`make regen-pegen` падает** — читать первую ошибку pegen: опечатка в

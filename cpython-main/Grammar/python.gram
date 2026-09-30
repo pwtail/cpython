@@ -111,6 +111,12 @@ statement[asdl_stmt_seq*]:
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
     | a=funnypy_assign_stmt { _PyPegen_register_stmts(p,
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
+    | a=if_expr_stmt { _PyPegen_register_stmts(p,
+                           (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
+    | a=with_expr_stmt { _PyPegen_register_stmts(p,
+                           (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
+    | a=try_expr_stmt { _PyPegen_register_stmts(p,
+                           (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
 
 single_compound_stmt[asdl_stmt_seq*]:
     | a=compound_stmt {
@@ -197,6 +203,15 @@ funnypy_pipe_stmt[asdl_stmt_seq*]:
         _PyPegen_funnypy_pipe_hole_def(p, c, f) }
     | c=hole_call_expr v=star_expressions NEWLINE {
         _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
+    # funnypy: a block expression (if/with/try) as the filler.  The block
+    # consumes the trailing NEWLINE/DEDENT, so these alternatives do not
+    # require one -- and, like a def-filler, they end the statement.
+    | c=hole_call_expr v=if_expr {
+        _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
+    | c=hole_call_expr v=with_expr {
+        _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
+    | c=hole_call_expr v=try_expr {
+        _PyPegen_funnypy_pipe_hole_expr(p, c, v) }
 
 # Funny Python: a def-lambda block as an implicit call argument — a bare
 # reference (or a `(..)` call) on the SAME line as `def`: `run def(): …`.
@@ -277,6 +292,23 @@ match_expr_stmt[stmt_ty]:
 # because the trailing DEDENT leaves no NEWLINE for simple_stmts.
 funnypy_assign_stmt[stmt_ty]:
     | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT b=annotated_rhs NEWLINE DEDENT {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
+    # funnypy: a block expression as the next-line RHS.  Its suite consumes
+    # the NEWLINE/DEDENT the first alternative needs, so the trailing DEDENT
+    # is matched directly (R8, specs/if-with-try-expression.md).
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT b=(if_expr | with_expr | try_expr) DEDENT {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
+
+# funnypy: the same statement-level rule for the if/with/try block
+# expressions (the block consumes the NEWLINE that simple_stmts needs).
+if_expr_stmt[stmt_ty]:
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ b=if_expr {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
+with_expr_stmt[stmt_ty]:
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ b=with_expr {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
+try_expr_stmt[stmt_ty]:
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ b=try_expr {
         _PyAST_Assign(a, b, NULL, EXTRA) }
 
 annotated_rhs[expr_ty]: yield_expr | star_expressions
@@ -626,6 +658,29 @@ funnypy_match_def[stmt_ty]:
     | "match" 'def' n=NAME '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyPegen_funnypy_match_def(p, n->v.Name.id, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
 
+# funnypy: if/with/try as expressions.  Clause keywords (elif/else/except/
+# finally) are siblings at statement level (dedent after the block), as in the
+# statement forms -- not nested INDENT/DEDENT cases like match_expr.
+if_expr[expr_ty]:
+    | 'if' a=named_expression ':' b=block c=elif_expr {
+        _PyAST_IfExpr(a, b, CHECK(asdl_stmt_seq*, _PyPegen_singleton_seq(p,
+            CHECK(stmt_ty, _PyAST_Expr(c, EXTRA)))), EXTRA) }
+    | 'if' a=named_expression ':' b=block c=[else_block] { _PyAST_IfExpr(a, b, c, EXTRA) }
+elif_expr[expr_ty]:
+    | 'elif' a=named_expression ':' b=block c=elif_expr {
+        _PyAST_IfExpr(a, b, CHECK(asdl_stmt_seq*, _PyPegen_singleton_seq(p,
+            CHECK(stmt_ty, _PyAST_Expr(c, EXTRA)))), EXTRA) }
+    | 'elif' a=named_expression ':' b=block c=[else_block] { _PyAST_IfExpr(a, b, c, EXTRA) }
+with_expr[expr_ty]:
+    | 'with' '(' a[asdl_withitem_seq*]=','.with_item+ ','? ')' ':' b=block {
+       _PyAST_WithExpr(a, b, EXTRA) }
+    | 'with' a[asdl_withitem_seq*]=','.with_item+ ':' b=block {
+        _PyAST_WithExpr(a, b, EXTRA) }
+try_expr[expr_ty]:
+    | 'try' &&':' b=block f=finally_block { _PyAST_TryExpr(b, NULL, NULL, f, EXTRA) }
+    | 'try' &&':' b=block ex[asdl_excepthandler_seq*]=except_block+ el=[else_block] f=[finally_block] {
+        _PyAST_TryExpr(b, ex, el, f, EXTRA) }
+
 patterns[pattern_ty]:
     | patterns[asdl_pattern_seq*]=open_sequence_pattern {
         _PyAST_MatchSequence(patterns, EXTRA) }
@@ -845,6 +900,14 @@ expression[expr_ty] (memo):
     | def_expr
     | match_expr
     | if_expression
+    # NOTE: `if_expr` must stay after `if_expression`: the pegen validator
+    # rejects a later alternative whose *name* is a string prefix of an
+    # earlier one ("if_expression".startswith("if_expr")), even though the
+    # first sets are disjoint (`if_expr` starts with the 'if' keyword, a
+    # conditional expression starts with `disjunction`).
+    | if_expr
+    | with_expr
+    | try_expr
     | disjunction
     | lambdef
 

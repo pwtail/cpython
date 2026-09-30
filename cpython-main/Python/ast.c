@@ -23,6 +23,7 @@ static int validate_patterns(asdl_pattern_seq *, int);
 static int validate_type_params(asdl_type_param_seq *);
 static int _validate_nonempty_seq(asdl_seq *, const char *, const char *);
 static int validate_stmt(stmt_ty);
+static int validate_body(asdl_stmt_seq *, const char *);
 static int validate_expr(expr_ty, expr_context_ty);
 static int validate_pattern(pattern_ty, int);
 static int validate_typeparam(type_param_ty);
@@ -293,6 +294,51 @@ validate_expr(expr_ty exp, expr_context_ty ctx)
         ret = 1;
         break;
     }
+    case IfExpr_kind:
+        ret = validate_expr(exp->v.IfExpr.test, Load) &&
+            validate_body(exp->v.IfExpr.body, "IfExpr") &&
+            validate_stmts(exp->v.IfExpr.orelse);
+        break;
+    case WithExpr_kind:
+        if (!_validate_nonempty_seq((asdl_seq *)exp->v.WithExpr.items,
+                                    "items", "WithExpr"))
+            return 0;
+        for (Py_ssize_t i = 0; i < asdl_seq_LEN(exp->v.WithExpr.items); i++) {
+            withitem_ty item = asdl_seq_GET(exp->v.WithExpr.items, i);
+            if (!validate_expr(item->context_expr, Load) ||
+                (item->optional_vars && !validate_expr(item->optional_vars, Store)))
+                return 0;
+        }
+        ret = validate_body(exp->v.WithExpr.body, "WithExpr");
+        break;
+    case TryExpr_kind:
+        if (!validate_body(exp->v.TryExpr.body, "TryExpr"))
+            return 0;
+        if (!asdl_seq_LEN(exp->v.TryExpr.handlers) &&
+            !asdl_seq_LEN(exp->v.TryExpr.finalbody)) {
+            PyErr_SetString(PyExc_ValueError, "TryExpr has neither except handlers nor finalbody");
+            return 0;
+        }
+        if (!asdl_seq_LEN(exp->v.TryExpr.handlers) &&
+            asdl_seq_LEN(exp->v.TryExpr.orelse)) {
+            PyErr_SetString(PyExc_ValueError, "TryExpr has orelse but no except handlers");
+            return 0;
+        }
+        for (Py_ssize_t i = 0; i < asdl_seq_LEN(exp->v.TryExpr.handlers); i++) {
+            excepthandler_ty handler = asdl_seq_GET(exp->v.TryExpr.handlers, i);
+            VALIDATE_POSITIONS(handler);
+            if ((handler->v.ExceptHandler.type &&
+                 !validate_expr(handler->v.ExceptHandler.type, Load)) ||
+                (handler->v.ExceptHandler.name &&
+                 !validate_name(handler->v.ExceptHandler.name)) ||
+                !validate_body(handler->v.ExceptHandler.body, "ExceptHandler"))
+                return 0;
+        }
+        ret = (!asdl_seq_LEN(exp->v.TryExpr.finalbody) ||
+                validate_stmts(exp->v.TryExpr.finalbody)) &&
+            (!asdl_seq_LEN(exp->v.TryExpr.orelse) ||
+             validate_stmts(exp->v.TryExpr.orelse));
+        break;
     case IfExp_kind:
         ret = validate_expr(exp->v.IfExp.test, Load) &&
             validate_expr(exp->v.IfExp.body, Load) &&
