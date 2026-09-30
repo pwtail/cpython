@@ -650,6 +650,7 @@ class Table:
                 return (key, *row_a, *row_b, DiffRatio(row_a[0], row_b[0]))
             case JoinMode.CHANGE_ONE_COLUMN:
                 return (key, row_a[0], row_b[0], DiffRatio(row_a[0], row_b[0]))
+            case _: pass
 
     def join_columns(self, columns: Columns) -> Columns:
         match self.join_mode:
@@ -672,6 +673,7 @@ class Table:
                     "Head " + columns[1],
                     "Change:",
                 )
+            case _: pass
 
     def join_tables(self, rows_a: Rows, rows_b: Rows) -> tuple[Columns, Rows]:
         ncols = len(self.columns)
@@ -1491,6 +1493,7 @@ def output_markdown(
 
             print("---", file=out)
             print("Stats gathered on:", date.today(), file=out)
+        case _: pass
 
 
 def output_stats(inputs: list[Path], json_output=str | None):
@@ -1512,6 +1515,7 @@ def output_stats(inputs: list[Path], json_output=str | None):
             base_stats = Stats(base_data)
             head_stats = Stats(head_data)
             output_markdown(sys.stdout, LAYOUT, base_stats, head_stats)
+        case _: pass
 
 
 def main():

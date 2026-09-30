@@ -241,6 +241,7 @@ def gen_colors_from_token_stream(
                 ):
                     span = Span.from_token(token, line_lengths)
                     yield ColorSpan(span, "builtin")
+            case _: pass
 
 
 keyword_first_sets_match = frozenset({"False", "None", "True", "await", "lambda", "not"})

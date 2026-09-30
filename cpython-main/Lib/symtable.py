@@ -273,6 +273,7 @@ class Class(SymbolTable):
                                 if c.name == scope_name and c.type == _symtable.TYPE_FUNCTION:
                                     d[scope_name] = 1
                                     break
+                        case _: pass
             self.__methods = tuple(d)
         return self.__methods
 

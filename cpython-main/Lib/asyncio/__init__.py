@@ -69,6 +69,7 @@ def __getattr__(name: str):
             if sys.platform == 'win32':
                 warnings._deprecated(f"asyncio.{name}", remove=(3, 16))
                 return windows_events._WindowsProactorEventLoopPolicy
+        case _: pass
             # Else fall through to the AttributeError below.
 
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

@@ -242,6 +242,7 @@ def _handle_import_error(on_error, modinfo, exc, *, warn_stacklevel):
             )
         case 'ignore':
             pass
+        case _: pass
 
 
 def _handle_preload(preload, main_path=None, sys_path=None, sys_argv=None,

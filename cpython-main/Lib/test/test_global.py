@@ -183,6 +183,7 @@ def fn():
         match (None, value):
             case (_, name_match_seq):
                 pass
+            case _: pass
         self.assertIs(globals()["name_match_seq"], value)
         del name_match_seq
 
@@ -192,6 +193,7 @@ def fn():
         match {"key": value}:
             case {"key": name_match_map}:
                 pass
+            case _: pass
         self.assertIs(globals()["name_match_map"], value)
         del name_match_map
 
@@ -201,6 +203,7 @@ def fn():
         match SimpleNamespace(key=value):
             case SimpleNamespace(key=name_match_attr):
                 pass
+            case _: pass
         self.assertIs(globals()["name_match_attr"], value)
         del name_match_attr
 

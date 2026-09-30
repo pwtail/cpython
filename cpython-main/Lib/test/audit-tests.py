@@ -678,6 +678,7 @@ def test_sys_remote_exec():
             case "cpython.remote_debugger_script":
                 nonlocal remote_event_script_path
                 remote_event_script_path = args[0]
+            case _: pass
 
     sys.addaudithook(hook)
     with tempfile.NamedTemporaryFile(mode='w+', delete=True) as tmp_file:

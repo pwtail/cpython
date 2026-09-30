@@ -781,6 +781,7 @@ class StackSummary(list):
                         isinstance(statement.targets[0], ast.Name)
                     ):
                         value = statement.value
+                case _: pass
             if value is not None and _spawns_full_line(value):
                 return False
         if anchors:
@@ -999,6 +1000,8 @@ def _extract_caret_anchors_from_line_segment(segment):
                     # find right bracket (final character of expression)
                     right_lineno, right_col = setup_positions(expr, force_valid=False)
                     return _Anchors(left_lineno, left_col, right_lineno, right_col)
+                case _: pass
+        case _: pass
 
     return None
 

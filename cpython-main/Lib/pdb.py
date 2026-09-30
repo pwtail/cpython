@@ -3103,6 +3103,7 @@ class _PdbServer(Pdb):
                     items = self._complete_any(text, line, begidx, endidx)
                     self._send(completions=items)
                     continue
+                case _: pass
             # Valid JSON, but doesn't meet the schema.
             self.error(f"Ignoring invalid message from client: {msg}")
 

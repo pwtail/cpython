@@ -3410,6 +3410,7 @@ class TestUopsOptimization(unittest.TestCase):
                 match (1, 2, 3, 4):
                     case [_, _, _, _]:
                         x += 1.0
+                    case _: pass
             return x
         res, ex = self._run_with_optimizer(testfunc, TIER2_THRESHOLD)
         self.assertEqual(int(res), TIER2_THRESHOLD)
@@ -3425,6 +3426,7 @@ class TestUopsOptimization(unittest.TestCase):
                 match object(), object():
                     case [_, _]:
                         x += 1.0
+                    case _: pass
             return x
         res, ex = self._run_with_optimizer(testfunc, TIER2_THRESHOLD)
         self.assertEqual(int(res), TIER2_THRESHOLD)
@@ -3440,6 +3442,7 @@ class TestUopsOptimization(unittest.TestCase):
                 match [1, 2, 3, 4]:
                     case [_, _, _, _]:
                         x += 1.0
+                    case _: pass
             return x
         res, ex = self._run_with_optimizer(testfunc, TIER2_THRESHOLD)
         self.assertEqual(int(res), TIER2_THRESHOLD)
@@ -5714,6 +5717,7 @@ class TestUopsOptimization(unittest.TestCase):
                 match x:
                     case A():
                         ret += x.val
+                    case _: pass
             return ret
 
         res, ex = self._run_with_optimizer(testfunc, TIER2_THRESHOLD)
@@ -5821,6 +5825,7 @@ class TestUopsOptimization(unittest.TestCase):
                 case int(): ...
                 case str(): ...
                 case dict(): ...
+                case _: pass
 
             (
                 u0,

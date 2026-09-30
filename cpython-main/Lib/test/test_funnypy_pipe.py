@@ -81,6 +81,7 @@ class PipeMatchTests(unittest.TestCase):
                 out.append("one")
             case 2:
                 out.append("two")
+            case _: pass
         self.assertEqual(out, ["two"])
 
     def test_stages_before_match(self):

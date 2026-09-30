@@ -116,6 +116,7 @@ class PatternAssignSupersetTests(unittest.TestCase):
                     return "one"
                 case {'k': k}:
                     return f"k={k}"
+                case _: pass
             return "other"
         self.assertEqual(classify(1), "one")
         self.assertEqual(classify({'k': 7}), "k=7")

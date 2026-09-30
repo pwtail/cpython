@@ -6591,11 +6591,42 @@ codegen_pattern(compiler *c, pattern_ty p, pattern_context *pc)
     return _PyCompile_Error(c, LOC(p), e, p->kind);
 }
 
+/* funnypy: emit `raise MatchError()` for a destructive match with no
+   matching case.  No AST node references this name, so it is absent from
+   the symtable: resolve the load opcode directly (function-like scope loads
+   a global, module/class scope loads a name) instead of codegen_nameop.  The
+   LOAD_GLOBAL oparg shift mirrors codegen_nameop. */
+static int
+codegen_raise_match_error(compiler *c, location loc)
+{
+    PyObject *name = PyUnicode_InternFromString("MatchError");
+    if (name == NULL) {
+        return ERROR;
+    }
+    Py_ssize_t arg = _PyCompile_DictAddObj(METADATA(c)->u_names, name);
+    Py_DECREF(name);
+    if (arg < 0) {
+        return ERROR;
+    }
+    if (_PyST_IsFunctionLike(SYMTABLE_ENTRY(c))) {
+        /* LOAD_GLOBAL keeps the call's NULL push in its oparg's low bit. */
+        ADDOP_I(c, loc, LOAD_GLOBAL, arg << 1);
+    }
+    else {
+        ADDOP_I(c, loc, LOAD_NAME, arg);
+    }
+    ADDOP(c, loc, PUSH_NULL);
+    ADDOP_I(c, loc, CALL, 0);
+    ADDOP_I(c, loc, RAISE_VARARGS, 1);
+    return SUCCESS;
+}
+
 static int
 codegen_match_inner(compiler *c, stmt_ty s, pattern_context *pc)
 {
     VISIT(c, expr, s->v.Match.subject);
     NEW_JUMP_TARGET_LABEL(c, end);
+    NEW_JUMP_TARGET_LABEL(c, no_match);
     Py_ssize_t cases = asdl_seq_LEN(s->v.Match.cases);
     assert(cases > 0);
     match_case_ty m = asdl_seq_GET(s->v.Match.cases, cases - 1);
@@ -6661,10 +6692,15 @@ codegen_match_inner(compiler *c, stmt_ty s, pattern_context *pc)
             ADDOP(c, LOC(m->pattern), NOP);
         }
         if (m->guard) {
-            RETURN_IF_ERROR(codegen_jump_if(c, LOC(m->pattern), m->guard, end, 0));
+            // funnypy: a failed guard means no case matched — raise.
+            RETURN_IF_ERROR(codegen_jump_if(c, LOC(m->pattern), m->guard, no_match, 0));
         }
         VISIT_SEQ(c, stmt, m->body);
+        ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
     }
+    // funnypy: no case matched — a match is destructive and raises MatchError.
+    USE_LABEL(c, no_match);
+    RETURN_IF_ERROR(codegen_raise_match_error(c, NO_LOCATION));
     USE_LABEL(c, end);
     return SUCCESS;
 }
@@ -6785,9 +6821,9 @@ codegen_match_expr(compiler *c, expr_ty e)
         RETURN_IF_ERROR(codegen_match_expr_body(c, m->body));
         ADDOP_JUMP(c, NO_LOCATION, JUMP, end);
     }
-    // No case matched: the value of the expression is None.
+    // funnypy: no case matched — a match is destructive and raises MatchError.
     USE_LABEL(c, no_match);
-    ADDOP_LOAD_CONST(c, NO_LOCATION, Py_None);
+    RETURN_IF_ERROR(codegen_raise_match_error(c, NO_LOCATION));
     USE_LABEL(c, end);
     PyMem_Free(pc.fail_pop);
     return SUCCESS;

@@ -39,6 +39,7 @@ class JsonFile:
                 startupinfo = subprocess.STARTUPINFO()  # type: ignore[attr-defined]
                 startupinfo.lpAttributeList = {"handle_list": [self.file]}
                 popen_kwargs['startupinfo'] = startupinfo
+            case _: pass
 
     @contextlib.contextmanager
     def inherit_subprocess(self) -> Iterator[None]:
