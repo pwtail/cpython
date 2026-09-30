@@ -496,8 +496,9 @@ inline в `codegen_function_body`; `compiler_unit` имеет дополните
    `COMPILE_FBLOCK_POP_VALUE` (иначе `return` внутри `finally` валит
    `assert(STACK_LEVEL() == 0)` в `RETURN_VALUE`).
 5. **Позиции v1:** правая часть присваивания, filler `..`,
-   выражение-инструкция. Дефер: `return`/`yield`/аргументы вызовов,
-   `async with`, `except*`, форма «`r =` на отдельной строке», REPL.
+   выражение-инструкция, `r =` + блок на следующей строке
+   (`funnypy_assign_stmt`). Дефер: `return`/`yield`/аргументы вызовов,
+   `async with`, `except*`, REPL.
    `ast.unparse()` новых узлов молча выдаёт мусор (как и у `MatchExpr`).
 6. **Вложенный блок.** `if`/`with`/`try` в теле ветки — это statement и
    значения не даёт (как в R5); вложенные блок-выражения проносят значение

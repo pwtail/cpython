@@ -271,6 +271,11 @@ match_expr_stmt[stmt_ty]:
 funnypy_assign_stmt[stmt_ty]:
     | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT b=annotated_rhs NEWLINE DEDENT {
         _PyAST_Assign(a, b, NULL, EXTRA) }
+    # funnypy: a block expression as the next-line RHS.  Its suite consumes
+    # the NEWLINE/DEDENT the first alternative needs, so the trailing DEDENT
+    # is matched directly (R8, specs/if-with-try-expression.md).
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT b=(if_expr | with_expr | try_expr) DEDENT {
+        _PyAST_Assign(a, b, NULL, EXTRA) }
 
 # funnypy: the same statement-level rule for the if/with/try block
 # expressions (the block consumes the NEWLINE that simple_stmts needs).

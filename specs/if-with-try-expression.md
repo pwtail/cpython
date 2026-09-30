@@ -44,7 +44,9 @@ except:
   индекс) — через statement-уровневые правила `if_expr_stmt` /
   `with_expr_stmt` / `try_expr_stmt`;
 - filler оператора `..` (в `pipe_stage` и в hole-вызове `f(..) …`);
-- выражение-инструкция (значение отбрасывается).
+- выражение-инструкция (значение отбрасывается);
+- `r =` на отдельной строке + блок ниже (`funnypy_assign_stmt`,
+  `funny-python-line-continuation`).
 
 НЕ доступно в `return`, аргументах вызовов и прочих произвольных
 expression-позициях: блок съедает финальный `NEWLINE`/`DEDENT`, и
@@ -95,7 +97,10 @@ statement-уровневые контексты потребовали бы от
   `statement` после `simple_stmts` (после `DEDENT` нет `NEWLINE`, который
   требует `simple_stmts` — та же причина, что у `match_expr_stmt`). `elif`
   оборачивается в `Expr`-стейтмент прямо в action грамматики (одно
-  C-выражение, без хелпера).
+  C-выражение, без хелпера). Блок-выражение как RHS на следующей строке
+  поддержано и в `funnypy_assign_stmt` — без завершающего `NEWLINE`
+  (`r =` + `INDENT` + `if_expr|with_expr|try_expr` + `DEDENT`;
+  см. `funny-python-line-continuation`).
 - **Кодген (`Python/codegen.c`):** `codegen_block_value(c, body)` — обобщение
   `codegen_match_expr_body` (компилирует блок, оставляя значение хвостового
   выражения или `None`). `codegen_if_expr` — по образцу statement-`codegen_if`
@@ -124,11 +129,6 @@ statement-уровневые контексты потребовали бы от
   `break`, `continue`, `global`, `nonlocal`, `import`/`from`, `type`-alias.
   Произвольные expression-позиции (`return`, аргументы вызовов) и REPL-форма —
   та же оговорка, что у pipeline/match-expr.
-- **Форма «`r =` на отдельной строке»** (`r =` + RHS на следующей строке,
-  `funny-python-line-continuation`) — обычное выражение и def-лямбда уже
-  поддержаны `funnypy_assign_stmt`, а блок-выражение (`r =` затем `try:`/
-  `if:`/`with:`) — пока нет: правило требует завершающий `NEWLINE`, который
-  блок съедает. Планируется в следующих итерациях.
 - **Тесты:** `Lib/test/test_funnypy_expr.py` (или классы в
   `Lib/test/test_funnypy.py`): if (then/elif/else, без else, пустая ветка →
   None, вложенность), with (`as`-биндинг, значение тела, `__enter__`/`__exit__`),

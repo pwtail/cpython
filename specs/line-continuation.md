@@ -25,8 +25,9 @@ objects = MyModel.objects
 Правила:
 
 - После `=` на конце строки на следующей строке (обязательно с отступом)
-  может начинаться RHS: любое выражение или блочная def-лямбда
-  (`f =` + `def(): …`, см. `funny-python-lambda`). `f = 1` затем отступом
+  может начинаться RHS: любое выражение, блочная def-лямбда
+  (`f =` + `def(): …`, см. `funny-python-lambda`) или блок-выражение
+  `if`/`with`/`try` (`f =` + `try: … except: …`, R8). `f = 1` затем отступом
   `+ 2` остаётся ошибкой — между `=` и NEWLINE стоит `1`.
 - Строка, начинающаяся с `.name` (`.` и старт идентификатора), — продолжение
   предыдущей строки: токенизатор не выдаёт NEWLINE/INDENT, атрибут-доступ
@@ -54,8 +55,11 @@ objects = MyModel.objects
     NEWLINE и ломало позиции ошибок/подсказки ключевых слов
     (`test_traceback`).
   - `Grammar/python.gram` — statement-правило `funnypy_assign_stmt`
-    (`star_targets '=' NEWLINE INDENT annotated_rhs NEWLINE DEDENT`),
-    подключённое в `statement` (не в `statement_newline`).
+    (`star_targets '=' NEWLINE INDENT annotated_rhs NEWLINE DEDENT`), плюс
+    альтернатива с блок-выражением
+    (`… INDENT (if_expr | with_expr | try_expr) DEDENT`) — у блока нет
+    завершающего `NEWLINE`. Подключено в `statement`
+    (не в `statement_newline`).
 - **Peek безопасен:** не выполняется для интерактивных токенизаторов
   (`tok->prompt != NULL` / `tok->readline != NULL`) — иначе readline
   зависнет на запросе следующей строки. Файлы, `-c`, Jupyter работают;
@@ -65,6 +69,7 @@ objects = MyModel.objects
   Адаптированные тесты: `Lib/test/test_codeop.py` — `a = ` теперь
   *incomplete* (RHS может начаться на следующей строке), а не invalid;
   перенесён из `test_invalid` в `test_incomplete`.
-- **Тесты:** `Lib/test/test_funnypy_line_cont.py` — RHS-выражение и
-  RHS-лямбда на следующей строке, цепочка `.`, продолжение после вызова,
-  неизменность `.5`/`...`, ошибка на `.5` после `x = 1`.
+- **Тесты:** `Lib/test/test_funnypy_line_cont.py` — RHS-выражение, RHS-лямбда
+  и RHS-блок-выражение (`if`/`with`/`try`) на следующей строке, цепочка `.`,
+  продолжение после вызова, неизменность `.5`/`...`, ошибка на `.5` после
+  `x = 1`.
