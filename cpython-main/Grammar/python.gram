@@ -153,6 +153,7 @@ funnypy_lambda_def[stmt_ty]:
 # ends with ':' so that `..match:` is not mistaken for a call stage.
 pipe_stage[void *]:
     | '.' '.' e=primary f=funnypy_lambda_def { _PyPegen_funnypy_stage_def(p, e, f) }
+    | '.' '.' e=primary NEWLINE INDENT f=funnypy_lambda_def DEDENT { _PyPegen_funnypy_stage_def(p, e, f) }
     | '.' '.' e=primary v=star_expressions { _PyPegen_funnypy_stage_expr(p, e, v) }
     | '.' '.' e=primary !':' { _PyPegen_funnypy_stage_expr(p, e, NULL) }
 

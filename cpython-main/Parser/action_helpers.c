@@ -2282,15 +2282,32 @@ _PyPegen_funnypy_require_hole_call(Parser *p, expr_ty e)
 void *
 _PyPegen_funnypy_stage_def(Parser *p, expr_ty e, stmt_ty def)
 {
-    Py_ssize_t hole = funnypy_find_hole(p, e);
-    if (hole < 0) {
-        return NULL;  /* error raised, or no placeholder: not our construct */
-    }
     expr_ty ref = funnypy_lambda_ref(p, e);
     if (ref == NULL) {
         return NULL;
     }
-    asdl_seq_SET(e->v.Call.args, hole, ref);
+    if (e->kind == Call_kind) {
+        Py_ssize_t hole = funnypy_find_hole(p, e);
+        if (hole < 0) {
+            return NULL;  /* error raised, or a call without a placeholder */
+        }
+        asdl_seq_SET(e->v.Call.args, hole, ref);
+    }
+    else {
+        /* Bare stage `..name def(...)`: `name` is a one-argument function,
+           so wrap it into `name(<lambda>)`; the pipeline appends the value. */
+        asdl_seq *only = _PyPegen_singleton_seq(p, ref);
+        if (only == NULL) {
+            return NULL;
+        }
+        e = _PyAST_Call(
+            e, (asdl_expr_seq *)only, NULL,
+            e->lineno, e->col_offset,
+            e->end_lineno, e->end_col_offset, p->arena);
+        if (e == NULL) {
+            return NULL;
+        }
+    }
     FunnypyPipeStage *stage = _PyArena_Malloc(p->arena, sizeof(FunnypyPipeStage));
     if (stage == NULL) {
         return NULL;
