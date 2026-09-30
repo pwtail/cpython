@@ -2119,7 +2119,9 @@ _PyPegen_checked_from_import(Parser *p, asdl_seq *dots, expr_ty module_name,
 asdl_stmt_seq *
 _PyPegen_funnypy_lambda_return(Parser *p, stmt_ty function_def)
 {
-    assert(function_def != NULL);
+    if (function_def == NULL) {
+        return NULL;
+    }
     assert(function_def->kind == FunctionDef_kind);
     expr_ty ref = _PyAST_Name(
         function_def->v.FunctionDef.name, Load,
@@ -2226,19 +2228,20 @@ _PyPegen_funnypy_match_assign(Parser *p, pattern_ty pattern, expr_ty value)
 /* Funny Python: `match def name(params):` with case blocks — a function that
    dispatches on the tuple of its positional arguments.  Desugars into
    `def name(params): return match (params...): cases`; the cases come from the
-   grammar.  Non-positional parameters have no fixed-arity subject, so they are
-   rejected with a clear error instead of being silently ignored. */
+   grammar.  Shared by the named form (name = the target) and the anonymous
+   form (name = "<lambda>").  Non-positional parameters have no fixed-arity
+   subject, so they are rejected with a clear error instead of being silently
+   ignored. */
 stmt_ty
-_PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
-                           expr_ty returns, asdl_match_case_seq *cases)
+_PyPegen_funnypy_match_def(Parser *p, identifier name, arguments_ty args,
+                           expr_ty returns, asdl_match_case_seq *cases,
+                           int lineno, int col_offset,
+                           int end_lineno, int end_col_offset,
+                           PyArena *arena)
 {
     if (name == NULL || args == NULL || cases == NULL) {
         return NULL;
     }
-    int lineno = name->lineno;
-    int col_offset = name->col_offset;
-    int end_lineno = name->end_lineno;
-    int end_col_offset = name->end_col_offset;
 
     if (args->vararg != NULL || args->kwarg != NULL ||
         asdl_seq_LEN(args->kwonlyargs) > 0) {
@@ -2268,7 +2271,7 @@ _PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
             : asdl_seq_GET(args->args, 0);
         subject = _PyAST_Name(
             only->arg, Load, lineno, col_offset,
-            end_lineno, end_col_offset, p->arena);
+            end_lineno, end_col_offset, arena);
     }
     else {
         asdl_expr_seq *elts = NULL;
@@ -2278,7 +2281,7 @@ _PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
                 : asdl_seq_GET(args->args, i - nposonly);
             expr_ty e = _PyAST_Name(
                 a->arg, Load, lineno, col_offset,
-                end_lineno, end_col_offset, p->arena);
+                end_lineno, end_col_offset, arena);
             if (e == NULL) {
                 return NULL;
             }
@@ -2290,7 +2293,7 @@ _PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
         }
         subject = _PyAST_Tuple(
             elts, Load, lineno, col_offset,
-            end_lineno, end_col_offset, p->arena);
+            end_lineno, end_col_offset, arena);
     }
     if (subject == NULL) {
         return NULL;
@@ -2298,13 +2301,13 @@ _PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
 
     expr_ty match_expr = _PyAST_MatchExpr(
         subject, cases, lineno, col_offset,
-        end_lineno, end_col_offset, p->arena);
+        end_lineno, end_col_offset, arena);
     if (match_expr == NULL) {
         return NULL;
     }
     stmt_ty ret = _PyAST_Return(
         match_expr, lineno, col_offset,
-        end_lineno, end_col_offset, p->arena);
+        end_lineno, end_col_offset, arena);
     if (ret == NULL) {
         return NULL;
     }
@@ -2313,8 +2316,27 @@ _PyPegen_funnypy_match_def(Parser *p, expr_ty name, arguments_ty args,
         return NULL;
     }
     return _PyAST_FunctionDef(
-        name->v.Name.id, args, body, NULL, returns, NULL, NULL,
-        lineno, col_offset, end_lineno, end_col_offset, p->arena);
+        name, args, body, NULL, returns, NULL, NULL,
+        lineno, col_offset, end_lineno, end_col_offset, arena);
+}
+
+/* Statement-position wrapper for `match def`: `_PyPegen_funnypy_match_def`
+   returns NULL both on a raised error and on allocation failure, so it must
+   not be handed straight to _PyPegen_singleton_seq (which asserts non-NULL). */
+asdl_stmt_seq *
+_PyPegen_funnypy_match_def_stmt(Parser *p, identifier name, arguments_ty args,
+                                expr_ty returns, asdl_match_case_seq *cases,
+                                int lineno, int col_offset,
+                                int end_lineno, int end_col_offset,
+                                PyArena *arena)
+{
+    stmt_ty def = _PyPegen_funnypy_match_def(
+        p, name, args, returns, cases,
+        lineno, col_offset, end_lineno, end_col_offset, arena);
+    if (def == NULL) {
+        return NULL;
+    }
+    return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, def);
 }
 
 /* Funny Python `..` pipeline / placeholder support. */
