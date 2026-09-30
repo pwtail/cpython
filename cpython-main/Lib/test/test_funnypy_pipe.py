@@ -338,6 +338,134 @@ class BlockFillerTests(unittest.TestCase):
         self.assertEqual(seen, [None])
 
 
+class PipeValueTests(unittest.TestCase):
+    """`..` pipelines on a def block, a block expression or a plain expression,
+    including the assignment form `res =` + value + stages."""
+
+    def test_def_block_value(self):
+        # res =\n    def():\n        42\n    ..run()
+        #   == res = run(def(): 42) == 42
+        run = def(f): return f()
+        res =
+            def():
+                42
+            ..run()
+        self.assertEqual(res, 42)
+
+    def test_equivalent_to_block_argument(self):
+        run = def(f): return f()
+        res =
+            def():
+                42
+            ..run()
+        res2 = run def():
+            return 42
+        self.assertEqual(res, res2)
+
+    def test_def_block_value_standalone(self):
+        seen = []
+        run = def(f): f()
+        def():
+            seen.append("ran")
+        ..run()
+        self.assertEqual(seen, ["ran"])
+
+    def test_def_block_value_takes_arguments(self):
+        apply5 = def(f): return f(5)
+        res =
+            def(x):
+                return x * 10
+            ..apply5()
+        self.assertEqual(res, 50)
+
+    def test_plain_expression_value(self):
+        double = def(x): x * 2
+        res =
+            21
+            ..double()
+        self.assertEqual(res, 42)
+
+    def test_bare_stage(self):
+        # A bare stage with no arguments is `str(value)`.
+        res =
+            5
+            ..str
+        self.assertEqual(res, "5")
+
+    def test_multiple_stages(self):
+        inc = def(x): x + 1
+        dbl = def(x): x * 2
+        res =
+            5
+            ..inc()
+            ..dbl()
+        self.assertEqual(res, 12)
+
+    def test_block_expression_match(self):
+        res =
+            match 5:
+                case x:
+                    x * 2
+            ..str()
+        self.assertEqual(res, "10")
+
+    def test_block_expression_if(self):
+        res =
+            if True:
+                1
+            else:
+                2
+            ..str()
+        self.assertEqual(res, "1")
+
+    def test_block_expression_with(self):
+        res =
+            with open("/dev/null"):
+                "x"
+            ..str()
+        self.assertEqual(res, "x")
+
+    def test_block_expression_try(self):
+        res =
+            try:
+                "ok"
+            except ValueError:
+                "bad"
+            ..str()
+        self.assertEqual(res, "ok")
+
+    def test_multiple_targets(self):
+        run = def(f): return f()
+        a = b =
+            def():
+                7
+            ..run()
+        self.assertEqual((a, b), (7, 7))
+
+    def test_def_block_value_is_hoisted(self):
+        # The def block is hoisted as a <lambda> FunctionDef before the
+        # assignment it feeds.
+        names = []
+        spy = def(f):
+            names.append(f.__name__)
+            return f()
+        res =
+            def():
+                42
+            ..spy()
+        self.assertEqual((res, names), (42, ["<lambda>"]))
+
+    def test_pipeline_result_is_implicit_return(self):
+        run = def(f): return f()
+
+        def outer():
+            def():
+                7
+            ..run()
+
+        self.assertEqual(outer(), 7)
+
+
 class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_stage_after_block_filler_rejected(self):

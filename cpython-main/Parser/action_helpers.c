@@ -2515,28 +2515,91 @@ funypy_pipe_finish(Parser *p, expr_ty value, asdl_seq *stages, expr_ty *result_o
     return defs;
 }
 
-asdl_stmt_seq *
-_PyPegen_funnypy_pipeline(Parser *p, expr_ty value, asdl_seq *stages)
+/* `Name("<lambda>")` positioned like the def-lambda block `def`. */
+static expr_ty
+funnypy_def_value_ref(Parser *p, stmt_ty def)
+{
+    PyObject *id = _PyPegen_new_identifier(p, "<lambda>");
+    if (id == NULL) {
+        return NULL;
+    }
+    return _PyAST_Name(id, Load,
+                       def->lineno, def->col_offset,
+                       def->end_lineno, def->end_col_offset, p->arena);
+}
+
+/* Build the statements of a `..` pipeline.  `value_def` (or NULL) is a
+   def-lambda block to hoist before the result; `value` is the pipeline input;
+   `targets` (or NULL) turns the result into an assignment to them. */
+static asdl_stmt_seq *
+funnypy_pipe_build(Parser *p, stmt_ty value_def, expr_ty value,
+                   asdl_seq *stages, asdl_expr_seq *targets)
 {
     expr_ty result = NULL;
     asdl_stmt_seq *defs = funypy_pipe_finish(p, value, stages, &result);
     if (defs == (asdl_stmt_seq *)-1) {
         return NULL;
     }
-    stmt_ty expr_stmt = _PyAST_Expr(
-        result, result->lineno, result->col_offset,
-        result->end_lineno, result->end_col_offset, p->arena);
-    if (expr_stmt == NULL) {
+    stmt_ty stmt;
+    if (targets == NULL) {
+        stmt = _PyAST_Expr(
+            result, result->lineno, result->col_offset,
+            result->end_lineno, result->end_col_offset, p->arena);
+    }
+    else {
+        expr_ty first = asdl_seq_GET(targets, 0);
+        stmt = _PyAST_Assign(
+            targets, result, NULL,
+            first->lineno, first->col_offset,
+            result->end_lineno, result->end_col_offset, p->arena);
+    }
+    if (stmt == NULL) {
         return NULL;
     }
-    if (defs == NULL) {
-        return (asdl_stmt_seq *)_PyPegen_singleton_seq(p, expr_stmt);
-    }
-    asdl_seq *out = _PyPegen_seq_append_to_end(p, (asdl_seq *)defs, expr_stmt);
+    asdl_stmt_seq *out = defs
+        ? (asdl_stmt_seq *)_PyPegen_seq_append_to_end(p, (asdl_seq *)defs, stmt)
+        : (asdl_stmt_seq *)_PyPegen_singleton_seq(p, stmt);
     if (out == NULL) {
         return NULL;
     }
-    return (asdl_stmt_seq *)out;
+    if (value_def != NULL) {
+        out = (asdl_stmt_seq *)_PyPegen_seq_insert_in_front(
+            p, value_def, (asdl_seq *)out);
+    }
+    return out;
+}
+
+asdl_stmt_seq *
+_PyPegen_funnypy_pipeline(Parser *p, expr_ty value, asdl_seq *stages)
+{
+    return funnypy_pipe_build(p, NULL, value, stages, NULL);
+}
+
+/* A pipeline whose input is a def-lambda block: hoist the block and run the
+   stages on `Name("<lambda>")`. */
+asdl_stmt_seq *
+_PyPegen_funnypy_pipeline_def(Parser *p, stmt_ty def, asdl_seq *stages)
+{
+    expr_ty value = funnypy_def_value_ref(p, def);
+    if (value == NULL) {
+        return NULL;
+    }
+    return funnypy_pipe_build(p, def, value, stages, NULL);
+}
+
+/* A pipeline assigned to `targets`; `value_def` is the def-lambda block for
+   the `def(): …` input, or NULL for an expression/block-expression input. */
+asdl_stmt_seq *
+_PyPegen_funnypy_pipe_assign(Parser *p, asdl_expr_seq *targets, expr_ty value,
+                             stmt_ty value_def, asdl_seq *stages)
+{
+    if (value_def != NULL) {
+        value = funnypy_def_value_ref(p, value_def);
+        if (value == NULL) {
+            return NULL;
+        }
+    }
+    return funnypy_pipe_build(p, value_def, value, stages, targets);
 }
 
 asdl_stmt_seq *

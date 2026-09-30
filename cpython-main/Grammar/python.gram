@@ -107,6 +107,12 @@ statement[asdl_stmt_seq*]:
     | a[asdl_stmt_seq*]=funnypy_pipe_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=funnypy_block_arg_stmt { _PyPegen_register_stmts(p, a) }
     | a[asdl_stmt_seq*]=simple_stmts { a }
+    # funnypy: the assignment forms below would swallow the block and leave
+    # the stages dangling, so the pipeline-RHS form comes first.  It stays
+    # after `compound_stmt` (like every other funnypy statement rule) so the
+    # statement-specific errors -- `invalid_if_stmt` and friends -- are not
+    # shadowed by the generic `invalid_block`.
+    | a[asdl_stmt_seq*]=funnypy_pipe_assign_stmt { _PyPegen_register_stmts(p, a) }
     | a=match_expr_stmt { _PyPegen_register_stmts(p,
                            (asdl_stmt_seq*)_PyPegen_singleton_seq(p, a)) }
     | a=funnypy_assign_stmt { _PyPegen_register_stmts(p,
@@ -158,6 +164,13 @@ funnypy_lambda_stmt[asdl_stmt_seq*]:
     | 'return' "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyPegen_funnypy_lambda_return(p, _PyPegen_funnypy_match_def(
             p, _PyPegen_new_identifier(p, "<lambda>"), (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA)) }
+    # funnypy: `def(): …` followed by `..` stages -- a pipeline on the
+    # anonymous function.  Tried before the bare def alternative below, which
+    # would otherwise end the statement at the block and leave the stages.
+    | v=funnypy_lambda_def s=pipe_stages NEWLINE {
+        _PyPegen_funnypy_pipeline_def(p, v, s) }
+    | v=funnypy_lambda_def s=pipe_stages {
+        _PyPegen_funnypy_pipeline_def(p, v, s) }
     | f=funnypy_lambda_def { (asdl_stmt_seq*)_PyPegen_singleton_seq(p, f) }
 
 # Shared rule: an anonymous function with a full suite and the synthetic name
@@ -295,9 +308,23 @@ funnypy_assign_stmt[stmt_ty]:
         _PyAST_Assign(a, b, NULL, EXTRA) }
     # funnypy: a block expression as the next-line RHS.  Its suite consumes
     # the NEWLINE/DEDENT the first alternative needs, so the trailing DEDENT
-    # is matched directly (R8, specs/if-with-try-expression.md).
+    # is matched directly (R11, specs/if-with-try-expression.md).
     | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT b=(if_expr | with_expr | try_expr) DEDENT {
         _PyAST_Assign(a, b, NULL, EXTRA) }
+
+# funnypy: an assignment whose right-hand side is a `..` pipeline: the input
+# may be an expression, a block expression (match/if/with/try) or a def
+# lambda, and the stages pipe it data-last.  The input's block consumes the
+# trailing NEWLINE/DEDENT, so the stages follow directly and one DEDENT of
+# the RHS indent is matched.  A statement-level rule, because the trailing
+# DEDENT leaves no NEWLINE for simple_stmts.
+funnypy_pipe_assign_stmt[asdl_stmt_seq*]:
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT v=star_expressions NEWLINE s=pipe_stages NEWLINE DEDENT {
+        _PyPegen_funnypy_pipe_assign(p, a, v, NULL, s) }
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT v=(match_expr | if_expr | with_expr | try_expr) s=pipe_stages NEWLINE DEDENT {
+        _PyPegen_funnypy_pipe_assign(p, a, v, NULL, s) }
+    | a[asdl_expr_seq*]=(z=star_targets '=' { z })+ NEWLINE INDENT v=funnypy_lambda_def s=pipe_stages NEWLINE DEDENT {
+        _PyPegen_funnypy_pipe_assign(p, a, NULL, v, s) }
 
 # funnypy: the same statement-level rule for the if/with/try block
 # expressions (the block consumes the NEWLINE that simple_stmts needs).

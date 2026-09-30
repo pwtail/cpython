@@ -324,6 +324,8 @@ void *_PyPegen_funnypy_stage_def(Parser *, expr_ty, stmt_ty);
 expr_ty _PyPegen_funnypy_require_hole_call(Parser *, expr_ty);
 void *_PyPegen_funnypy_stage_expr(Parser *, expr_ty, expr_ty);
 asdl_stmt_seq *_PyPegen_funnypy_pipeline(Parser *, expr_ty, asdl_seq *);
+asdl_stmt_seq *_PyPegen_funnypy_pipeline_def(Parser *, stmt_ty, asdl_seq *);
+asdl_stmt_seq *_PyPegen_funnypy_pipe_assign(Parser *, asdl_expr_seq *, expr_ty, stmt_ty, asdl_seq *);
 asdl_stmt_seq *_PyPegen_funnypy_pipeline_match(Parser *, expr_ty, asdl_seq *, asdl_match_case_seq *);
 asdl_stmt_seq *_PyPegen_funnypy_pipe_hole_def(Parser *, expr_ty, stmt_ty);
 asdl_stmt_seq *_PyPegen_funnypy_pipe_hole_expr(Parser *, expr_ty, expr_ty);
