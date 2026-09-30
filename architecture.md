@@ -36,15 +36,24 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
 ## Module edges
 
 - `funny-python-lambda` — depends-on: грамматика, AST/codegen. Рантайм не
-  трогает: лямбда компилируется в обычный код функции.
+  трогает: лямбда компилируется в обычный код функции. R6 добавляет
+  expression-форму (`def_expr` → `Lambda`).
 - `funny-python-pattern-assign` — depends-on: грамматика, codegen
   (`codegen_pattern*`), рантайм (новый `MatchError`).
+- `funny-python-implicit-return` — depends-on: codegen (`Python/codegen.c`,
+  `compiler_unit`); трогает семантику возврата всех функций — см. R5.
+- `funny-python-match-expression` — depends-on: грамматика, AST
+  (`Parser/Python.asdl` → `MatchExpr`), codegen (`codegen_pattern*`),
+  symtable и валидация AST.
 
 ## Invariants
 
 - **Суперсет (R1) проверяется тестами:** вся штатная `Lib/test` CPython должна
-  проходить без изменений после каждой фичи — это регрессионный инвариант
-  форка.
+  проходить после каждой фичи. Единственное исключение — правило R5
+  (неявный return): тесты, кодирующие старое поведение хвостового выражения
+  или старого байткода, адаптируются явно и перечислены в
+  `funny-python-implicit-return`; молчаливых расхождений быть не должно.
+  Новая семантика закреплена `Lib/test/test_funnypy.py`.
 - **Минимальный дифф:** изменения только в перечисленных выше файлах + новые
   тесты; никаких правок смежной механики (tokenizer, ceval) без отдельного
   обоснования в спеке фичи.
@@ -52,3 +61,7 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
   сфокусированные изменения, существующий стиль, тесты на каждое изменение).
 - **Решения живут в спеках:** рационале синтаксиса/семантики — здесь и в
   спеках фич, в коде — максимум однострочный указатель.
+- **Сгенерированные файлы не правятся руками:** после изменения
+  `Grammar/python.gram` — `make regen-pegen`, после `Parser/Python.asdl` —
+  `make regen-ast` (или прямые вызовы `Tools/peg_generator` и
+  `Parser/asdl_c.py` тем же `python3.14`).

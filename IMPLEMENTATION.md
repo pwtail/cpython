@@ -408,16 +408,52 @@ pipe-match (+ стадии перед ним), def/expr-filler, hole-стейт�
 (незаполненный/вложенный/keyword/двойной hole, inline-пайплайн) и
 неизменность Ellipsis/лямбд/деструктуризации.
 
-## Фаза 5. Полная регрессия (инвариант суперсета)
+## Фаза 5. Неявный return, expression-форма `def` и `match`-выражение
+
+Три фичи поверх R2–R4; спеки — `specs/implicit-return.md`,
+`specs/match-expression.md`, `specs/multiline-lambda.md`.
+
+1. **R5, неявный return.** `compiler_unit.u_returns_last_expr`
+   (`Python/compile.c`) + аксессоры в `pycore_compile.h` (структура
+   `_PyCompiler` непрозрачна для `codegen.c`). В `codegen_function_body`
+   (`Python/codegen.c`) последний `Expr` компилируется без `POP_TOP`;
+   `_PyCodegen_AddReturnAtEnd` не добавляет `LOAD_CONST None`. Исключения:
+   `...` — placeholder (`is_ellipsis_placeholder`), генераторы/корутины,
+   docstring-only, а также `__init__`/`__exit__` (None-контракт несёт
+   семантику). Патчи stdlib под None-контракт — в спеке.
+2. **R6, `def(...)` в выражениях.** Правило `def_expr` в грамматике
+   (`'def' '(' params ')' ':' expression` → `_PyAST_Lambda`,
+   `regen-pegen`). В statement-позициях выигрывает блочная форма R2
+   (`funnypy_lambda_stmt` идёт раньше в `statement`), так что
+   `f = def(x): x + 1` — это `def f` + неявный return; в выражениях —
+   `Lambda` (`__name__ == '<lambda>'`).
+3. **R7, `match`-выражение.** Новый AST-узел `MatchExpr` в
+   `Parser/Python.asdl` (`regen-ast`), правила `match_expr` и
+   statement-уровневое `match_expr_stmt` (после `simple_stmts`: после
+   `DEDENT` нет `NEWLINE`), кодген `codegen_match_expr` по образцу
+   `codegen_match_inner` с инвариантом «на каждом пути к `end` — ровно одно
+   значение», symtable и `validate_expr`. No-match → `None`.
+
+Порт с 3.16 на 3.15: в 3.15 нет `codegen_emit_function_body` — хук сделан
+inline в `codegen_function_body`; `compiler_unit` имеет дополнительное поле
+`u_in_inlined_comp`; сгенерированные файлы перегенерированы туловской 3.15
+(`pegen` и `Parser/asdl_c.py` под `python3.14`).
+
+## Фаза 6. Полная регрессия (инвариант суперсета)
 
 ```bash
 ./python -m test -j$(nproc) -q
 ```
 
-Ожидание: вся штатная `Lib/test` зелёная. Падение в тесте, не связанном с
-новым синтаксисом, — нарушение суперсета (R1), разбираться до продолжения.
-Доброкачественные падения, зафиксированные на чистом дереве, исключаются из
-сравнения.
+Ожидание: вся штатная `Lib/test` зелёная. Исключение — правило R5
+(неявный return): тесты, кодирующие старое поведение хвостового выражения
+или старый байткод, адаптированы (`test_dis`, `test_code`,
+`test_sys_setprofile`, `test_interpreters/test_api`, `test_crossinterp`,
+`test_imaplib`, `test_pdb`, `test.support.gc_collect`). Падение в тесте, не
+связанном с новым синтаксисом/R5, — нарушение суперсета (R1), разбираться до
+продолжения. Доброкачественные падения, зафиксированные на чистом дереве,
+исключаются из сравнения. Новая семантика закреплена
+`Lib/test/test_funnypy.py`.
 
 ## Если что-то пошло не так
 
