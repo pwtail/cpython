@@ -32,6 +32,8 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
   `Python/codegen.c`; деструктуризация переиспользует его, а не пишет свой.
 - **MatchError** — нового встроенного исключения пока нет; добавляется в
   `Objects/exceptions.c` (+ документация, `Lib/test/exception_hierarchy.txt`).
+- **Токенизатор** — `Parser/lexer/lexer.c` (+ поле в `Parser/lexer/state.h`):
+  leading-dot продолжение строки (см. `funny-python-line-continuation`).
 
 ## Module edges
 
@@ -45,6 +47,9 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
 - `funny-python-match-expression` — depends-on: грамматика, AST
   (`Parser/Python.asdl` → `MatchExpr`), codegen (`codegen_pattern*`),
   symtable и валидация AST.
+- `funny-python-line-continuation` — depends-on: токенизатор
+  (`Parser/lexer/lexer.c`), грамматика (`funnypy_assign_stmt`). Рантайм и
+  `codegen.c` не трогает.
 
 ## Invariants
 
@@ -55,8 +60,9 @@ Grammar/python.gram ──► Parser/ (pegen, генерация parser.c) ─�
   `funny-python-implicit-return`; молчаливых расхождений быть не должно.
   Новая семантика закреплена `Lib/test/test_funnypy.py`.
 - **Минимальный дифф:** изменения только в перечисленных выше файлах + новые
-  тесты; никаких правок смежной механики (tokenizer, ceval) без отдельного
-  обоснования в спеке фичи.
+  тесты; правки смежной механики (tokenizer, ceval) — только с отдельным
+  обоснованием в спеке фичи. Токенизатор задействован однажды — leading-dot
+  (`funny-python-line-continuation`).
 - **Стиль — как в CPython:** следуем `cpython-main/AGENTS.md` (минимальные
   сфокусированные изменения, существующий стиль, тесты на каждое изменение).
 - **Решения живут в спеках:** рационале синтаксиса/семантики — здесь и в

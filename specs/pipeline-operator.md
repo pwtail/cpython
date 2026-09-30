@@ -44,11 +44,15 @@ x                    # pipe-match: обычный compound match с piped-суб
   Inline-`..` в выражениях нет.
 - Pipeline собирается data-last: значение — последним позиционным аргументом
   каждого звена. Голая ссылка без вызова (`..len`) трактуется как вызов без
-  аргументов (`len(value)`).
-- Placeholder `..` — в аргументах вызова, заполняется следующим на той же
-  строке filler'ом: `def(параметры): <suite>` (statement-лямбда, см.
-  `funny-python-lambda`) или любым выражением. Ровно один placeholder на
-  стейтмент, только в прямых позиционных аргументах внешнего вызова.
+  аргументов (`len(value)`). Голая ссылка с def-лямбдой
+  (`..map def(x): …`) ≡ `..map(..) def(x): …` → `map(def, value)`: имя —
+  функция одного аргумента, def подставляется первым, value — последним.
+- Placeholder `..` — в аргументах вызова, заполняется filler'ом:
+  `def(параметры): <suite>` (statement-лямбда, см. `funny-python-lambda`) или
+  выражением. def-filler может идти со следующей строки (с отступом) —
+  `..map` / `..myfunc(1, 2, ..)` затем `def(x): …`; выражение-заполнитель —
+  только на той же строке. Ровно один placeholder на стейтмент, только в
+  прямых позиционных аргументах внешнего вызова.
 - `x ..match:` = `match x:`; имена связываются в текущей области. Стадии до
   `..match:` применяются по цепочке, итог — субъект match.
 
@@ -84,7 +88,9 @@ x                    # pipe-match: обычный compound match с piped-суб
     SyntaxError), `stage_def`/`stage_expr` (резолюция hole),
     `pipe_apply`/`pipeline`/`pipeline_match` (data-last сборка),
     `pipe_hole_def`/`pipe_hole_expr`. Голая стадия без вызова (`..len`)
-    оборачивается в вызов с одним аргументом.
+    оборачивается в вызов с одним аргументом; `stage_def` при голом имени
+    (`..map def`) оборачивает имя в `name(<lambda>)` (hole — только для
+    `Call` с placeholder'ом; `Call` без hole + def — откат).
   - `Python/symtable.c` — compile-ошибка на `Name("<pipe>")` в Load-контексте
     (незаполненный placeholder) с локацией через `SET_ERROR_LOCATION`.
 - **Ограничения v1 (проверено):**
@@ -108,6 +114,8 @@ x                    # pipe-match: обычный compound match с piped-суб
     upstream-однострочный `if True: pass` (обе ветки требуют завершающий
     NEWLINE после блока).
 - **Тесты:** `Lib/test/test_funnypy_pipe.py`: примеры из запроса, цепочка,
-  bare-звено, def/expr-filler, pipe-match (совпадение/несовпадение, стадии
-  перед match), SyntaxError на незаполненный/вложенный/keyword hole и на
-  inline-`..`; неизменность Ellipsis `f(...)` и распаковки.
+  bare-звено (в т.ч. с def-filler той же и следующей строкой), hole-filler на
+  следующей строке, def/expr-filler, pipe-match (совпадение/несовпадение,
+  стадии перед match), SyntaxError на незаполненный/вложенный/keyword hole,
+  на `Call` без hole + def и на inline-`..`; неизменность Ellipsis `f(...)`
+  и распаковки.
