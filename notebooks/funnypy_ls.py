@@ -25,6 +25,10 @@ Note: jupyterlab-lsp currently renders only diagnostics and document symbols
 (it has no semantic-token or folding-range UI); the other two features are for
 clients such as VS Code or Neovim.
 
+Known limits: IPython shell escapes embedded in an expression (``x = !ls``)
+are not masked, and a cell magic whose body is Python (``%%time``) keeps its
+body diagnosable whereas foreign ones (``%%bash``) mask the whole cell.
+
 Wire it into jupyter-lsp with::
 
     "argv": ["<funnypy-venv>/bin/python", "<path>/funnypy_ls.py"]
@@ -41,6 +45,7 @@ from __future__ import annotations
 import ast
 import io
 import logging
+import re
 import sys
 import tokenize
 
@@ -48,7 +53,7 @@ from lsprotocol import types
 from pygls.lsp.server import LanguageServer
 
 SERVER_NAME = "funnypy-language-server"
-SERVER_VERSION = "0.2.0"
+SERVER_VERSION = "0.3.0"
 
 log = logging.getLogger(SERVER_NAME)
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
@@ -61,44 +66,108 @@ server = LanguageServer(
 
 _PARSE_ERRORS = (SyntaxError, ValueError, OverflowError, MemoryError, RecursionError)
 
+# The line model shared by the tokenizer, CPython positions and the LSP:
+# only LF, CR and CRLF end a line (unlike `str.splitlines()`, which also
+# splits on \v, \f, \x1c-\x1e, \x85, U+2028 and U+2029).
+_LINE_BREAK = re.compile(r"\r\n|\r|\n")
+_LINE_BREAK_CAPTURE = re.compile(r"(\r\n|\r|\n)")
+
+
+def _split_lines(source: str) -> list[str]:
+    return _LINE_BREAK.split(source)
+
+
+# ---------------------------------------------------------------------------
+# Position encoding
+# ---------------------------------------------------------------------------
+
+# Set from the client's negotiated `positionEncoding`; LSP's default is UTF-16.
+_POSITION_ENCODING = "utf-16"
+
+
+def _sync_encoding() -> None:
+    """Pick up the position encoding negotiated during initialize."""
+    global _POSITION_ENCODING
+    try:
+        raw = server.workspace.position_encoding
+    except Exception:  # noqa: BLE001 - workspace not created before initialize
+        return
+    value = getattr(raw, "value", raw)
+    if isinstance(value, str):
+        _POSITION_ENCODING = value
+
+
+def _encoded_col(line: str, cp_col: int) -> int:
+    """Convert a 0-based codepoint column to the client's position encoding."""
+    if cp_col <= 0:
+        return 0
+    if cp_col > len(line):
+        cp_col = len(line)
+    prefix = line[:cp_col]
+    if _POSITION_ENCODING == "utf-8":
+        return len(prefix.encode("utf-8"))
+    if _POSITION_ENCODING == "utf-32":
+        return len(prefix)
+    return len(prefix.encode("utf-16-le")) // 2
+
 
 # ---------------------------------------------------------------------------
 # Diagnostics
 # ---------------------------------------------------------------------------
 
+# Cell magics whose body is not Python at all.
+_FOREIGN_CELL_MAGICS = frozenset({
+    "bash", "sh", "script", "html", "javascript", "js", "latex", "markdown",
+    "md", "perl", "ruby", "sql", "cmd", "powershell", "svg",
+})
+
+
+def _neutralize(line: str) -> str:
+    """Replace a foreign line with a same-length no-op (`pass` + padding)."""
+    indent_len = len(line) - len(line.lstrip(" \t"))
+    indent, body = line[:indent_len], line[indent_len:]
+    if len(body) >= 4:
+        return indent + "pass" + "#" * (len(body) - 4)
+    return indent + "#" * len(body)
+
+
 def mask_ipython_magics(source: str) -> str:
-    """Turn whole-line IPython magics / shell escapes into comments.
+    """Neutralise IPython magics so the cell parses as the kernel runs it.
 
-    ``%matplotlib inline``, ``%%time`` and ``!pip install ...`` are valid in a
-    notebook cell but not in Python.  Replacing the leading magic character
-    with ``#`` keeps every line's length and line number identical, so error
-    positions reported on the *masked* source map 1:1 onto the original.
+    ``%time f()``, ``!pip install x`` and ``%%bash`` blocks are valid in a
+    notebook cell but not in Python.  Every such line is rewritten in place to
+    a no-op statement of *exactly* the same length (``pass`` padded with
+    ``#``), so line numbers and columns of everything else are preserved.
+    A cell magic known to contain foreign code masks the rest of the cell;
+    other ``%%`` magics (``%%time``, ...) keep their Python body diagnosable.
     """
-    out = []
-    for line in source.splitlines(keepends=True):
-        stripped = line.lstrip(" \t")
-        if stripped[:1] in ("%", "!"):
-            i = line.index(stripped[0])
-            line = line[:i] + "#" + line[i + 1:]
-        out.append(line)
+    parts = _LINE_BREAK_CAPTURE.split(source)  # [text, sep, text, sep, ..., text]
+    out: list[str] = []
+    foreign_cell = False
+    for index, part in enumerate(parts):
+        if index % 2:  # a line separator
+            out.append(part)
+            continue
+        stripped = part.lstrip(" \t")
+        if foreign_cell:
+            out.append(_neutralize(part))
+        elif stripped.startswith("%%"):
+            name = stripped[2:].split(None, 1)[0] if stripped[2:].strip() else ""
+            foreign_cell = name in _FOREIGN_CELL_MAGICS
+            out.append(_neutralize(part))
+        elif stripped[:1] in ("%", "!"):
+            out.append(_neutralize(part))
+        else:
+            out.append(part)
     return "".join(out)
-
-
-def _utf16_col(line: str, cp_col: int) -> int:
-    """Convert a 0-based codepoint column into UTF-16 code units (LSP default)."""
-    if cp_col <= 0:
-        return 0
-    if cp_col >= len(line):
-        return len(line.encode("utf-16-le")) // 2
-    return len(line[:cp_col].encode("utf-16-le")) // 2
 
 
 def _position(lines: list[str], lineno: int, offset: int) -> types.Position:
     """Map CPython's 1-based ``lineno``/``offset`` to a 0-based LSP position."""
-    line_idx = max(0, lineno - 1)
+    line_idx = max(0, (lineno or 1) - 1)
     text = lines[line_idx] if line_idx < len(lines) else ""
     cp_col = max(0, (offset or 1) - 1)
-    return types.Position(line=line_idx, character=_utf16_col(text, cp_col))
+    return types.Position(line=line_idx, character=_encoded_col(text, cp_col))
 
 
 def _diagnostic_range(lines: list[str], e: SyntaxError) -> types.Range:
@@ -108,6 +177,12 @@ def _diagnostic_range(lines: list[str], e: SyntaxError) -> types.Range:
     1-based exclusive (one past the last offending char).  When CPython leaves
     ``end_offset`` at 0 (e.g. an unclosed bracket), underline to end of line.
     """
+    if e.lineno is None or e.offset is None:
+        # e.g. "source code string cannot contain null bytes" — no position.
+        return types.Range(
+            start=types.Position(line=0, character=0),
+            end=types.Position(line=0, character=1),
+        )
     start = _position(lines, e.lineno, e.offset)
     end_lineno = e.end_lineno
     end_offset = e.end_offset
@@ -123,7 +198,7 @@ def _diagnostic_range(lines: list[str], e: SyntaxError) -> types.Range:
             end = types.Position(line=start.line, character=start.character + 1)
     else:
         end_text = lines[start.line] if start.line < len(lines) else ""
-        end_char = _utf16_col(end_text, len(end_text))
+        end_char = _encoded_col(end_text, len(end_text))
         if end_char <= start.character:
             end_char = start.character + 1
         end = types.Position(line=start.line, character=end_char)
@@ -138,7 +213,7 @@ def compute_diagnostics(source: str) -> list[types.Diagnostic]:
     the fork adds (e.g. an unresolved ``..`` placeholder), duplicate
     arguments, ``return`` outside a function, and so on.
     """
-    lines = source.splitlines()
+    lines = _split_lines(source)
     try:
         compile(mask_ipython_magics(source), "<cell>", "exec")
     except SyntaxError as e:
@@ -150,8 +225,8 @@ def compute_diagnostics(source: str) -> list[types.Diagnostic]:
                 source="funnypy",
             )
         ]
-    except (ValueError, OverflowError, MemoryError):
-        # NUL bytes, recursion limit, ... — not user-facing syntax errors.
+    except (ValueError, OverflowError, MemoryError, RecursionError):
+        # Recursion limit, ... — not user-facing syntax errors.
         return []
     return []
 
@@ -172,7 +247,7 @@ def _ast_position(lines: list[str], lineno: int, col_offset: int) -> types.Posit
     line_idx = max(0, lineno - 1)
     text = lines[line_idx] if line_idx < len(lines) else ""
     prefix = text.encode("utf-8")[:col_offset].decode("utf-8", errors="replace")
-    return types.Position(line=line_idx, character=_utf16_col(text, len(prefix)))
+    return types.Position(line=line_idx, character=_encoded_col(text, len(prefix)))
 
 
 def _ast_range(lines: list[str], node: ast.AST) -> types.Range:
@@ -187,19 +262,33 @@ def _ast_range(lines: list[str], node: ast.AST) -> types.Range:
 # ---------------------------------------------------------------------------
 
 def _name_selection(lines: list[str], node: ast.AST, name: str) -> types.Range:
-    """Range of the identifier ``name`` on the node's first line."""
+    """Range of the identifier ``name`` on the node's first line.
+
+    Falls back to the whole node when the source spelling does not match the
+    AST name (identifiers are NFKC-normalised, so ``ﬁle = file`` has the name
+    ``file``): the selection range must stay inside the symbol range.
+    """
+    node_range = _ast_range(lines, node)
     line_idx = node.lineno - 1
     if line_idx >= len(lines):
-        return _ast_range(lines, node)
+        return node_range
     text = lines[line_idx]
     prefix = text.encode("utf-8")[:node.col_offset].decode("utf-8", errors="replace")
     idx = text.find(name, len(prefix))
     if idx < 0:
-        return _ast_range(lines, node)
-    return types.Range(
-        start=types.Position(line=line_idx, character=_utf16_col(text, idx)),
-        end=types.Position(line=line_idx, character=_utf16_col(text, idx + len(name))),
+        return node_range
+    candidate = types.Range(
+        start=types.Position(line=line_idx, character=_encoded_col(text, idx)),
+        end=types.Position(line=line_idx, character=_encoded_col(text, idx + len(name))),
     )
+    if (
+        (candidate.start.line, candidate.start.character)
+        < (node_range.start.line, node_range.start.character)
+        or (candidate.end.line, candidate.end.character)
+        > (node_range.end.line, node_range.end.character)
+    ):
+        return node_range
+    return candidate
 
 
 def _make_symbol(name, kind, node, lines, children) -> types.DocumentSymbol:
@@ -212,36 +301,40 @@ def _make_symbol(name, kind, node, lines, children) -> types.DocumentSymbol:
     )
 
 
-def _collect_symbols(node: ast.AST, lines: list[str], collect_vars: bool):
+def _collect_symbols(root: ast.AST, lines: list[str], collect_vars: bool):
+    """Collect symbols iteratively: expression trees can be far too deep to walk recursively."""
     symbols: list[types.DocumentSymbol] = []
-    for child in ast.iter_child_nodes(node):
-        if isinstance(child, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+    stack: list[tuple[ast.AST, list, bool]] = [
+        (child, symbols, collect_vars)
+        for child in reversed(list(ast.iter_child_nodes(root)))
+    ]
+    while stack:
+        node, out, vars_here = stack.pop()
+        target_out, child_vars = out, vars_here
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
             # `return def(x): ...` / `def(x): ...` desugar to a synthetic
             # `<lambda>` FunctionDef — not a name worth showing in an outline.
-            if not child.name.isidentifier():
-                continue
-            kind = (
-                types.SymbolKind.Class
-                if isinstance(child, ast.ClassDef)
-                else types.SymbolKind.Function
-            )
-            symbols.append(
-                _make_symbol(
-                    child.name, kind, child, lines,
-                    _collect_symbols(child, lines, collect_vars=False),
+            if node.name.isidentifier():
+                kind = (
+                    types.SymbolKind.Class
+                    if isinstance(node, ast.ClassDef)
+                    else types.SymbolKind.Function
                 )
-            )
-        elif collect_vars and isinstance(child, ast.Assign):
-            for target in child.targets:
+                children: list[types.DocumentSymbol] = []
+                out.append(_make_symbol(node.name, kind, node, lines, children))
+                target_out, child_vars = children, False
+        elif vars_here and isinstance(node, ast.Assign):
+            for target in node.targets:
                 if isinstance(target, ast.Name):
-                    symbols.append(
+                    out.append(
                         _make_symbol(
                             target.id, types.SymbolKind.Variable, target, lines, []
                         )
                     )
-            symbols.extend(_collect_symbols(child, lines, collect_vars))
-        else:
-            symbols.extend(_collect_symbols(child, lines, collect_vars))
+        stack.extend(
+            (child, target_out, child_vars)
+            for child in reversed(list(ast.iter_child_nodes(node)))
+        )
     return symbols
 
 
@@ -249,7 +342,7 @@ def compute_document_symbols(source: str) -> list[types.DocumentSymbol]:
     tree = _parse(source)
     if tree is None:
         return []
-    return _collect_symbols(tree, source.splitlines(), collect_vars=True)
+    return _collect_symbols(tree, _split_lines(source), collect_vars=True)
 
 
 # ---------------------------------------------------------------------------
@@ -347,7 +440,8 @@ def _pattern_assign_keyword(line: list[tokenize.TokenInfo]) -> bool:
     """Does this logical line look like `match <pattern> = <expr>`?
 
     Distinguishes funnypy's soft-keyword form from ``match = 1``,
-    ``match.x = 1``, ``match: int = 1`` and a plain ``match x:`` statement.
+    ``match.x = 1``, ``match: int = 1``, a plain ``match x:`` statement and
+    ordinary tuple un/repacking such as ``match, x = 1, 2``.
     """
     if len(line) < 2:
         return False
@@ -363,6 +457,9 @@ def _pattern_assign_keyword(line: list[tokenize.TokenInfo]) -> bool:
                 depth += 1
             elif tok.string in ")]}":
                 depth -= 1
+            elif tok.string in (",", ";") and depth == 0:
+                # A bare tuple target list is ordinary unpacking, not a pattern.
+                return False
             elif tok.string == "=" and depth == 0:
                 return seen > 0
             elif tok.string == ":" and depth == 0:
@@ -382,12 +479,18 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
     * soft-keyword ``match`` in ``match p = v`` / ``..match:`` -> keyword
     """
     masked = mask_ipython_magics(source)
+    masked_lines = _split_lines(masked)
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(masked).readline))
     except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
         return types.SemanticTokens(data=[])
 
     raw: list[tuple[int, int, int, int]] = []  # (line0, char0, length, type)
+
+    def emit(tok, length, token_type):
+        line0 = tok.start[0] - 1
+        text = masked_lines[line0] if line0 < len(masked_lines) else ""
+        raw.append((line0, _encoded_col(text, tok.start[1]), length, token_type))
 
     for line in _logical_lines(tokens):
         i = 0
@@ -400,13 +503,13 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
                 tok.type == tokenize.NAME and tok.string == "def"
                 and nxt is not None and nxt.type == tokenize.OP and nxt.string == "("
             ):
-                raw.append((tok.start[0] - 1, tok.start[1], 3, _KEYWORD))
+                emit(tok, len(tok.string), _KEYWORD)
                 i += 1
                 continue
 
             # `..` — pipe stage / placeholder / pipe-match.
             if nxt is not None and _is_adjacent_dots(tok, nxt):
-                raw.append((tok.start[0] - 1, tok.start[1], 2, _OPERATOR))
+                emit(tok, 2, _OPERATOR)
                 i += 2
                 continue
 
@@ -414,7 +517,7 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
             if tok.type == tokenize.NAME and tok.string == "match":
                 pipe_match = i >= 2 and _is_adjacent_dots(line[i - 2], line[i - 1])
                 if pipe_match or _pattern_assign_keyword(line):
-                    raw.append((tok.start[0] - 1, tok.start[1], 5, _KEYWORD))
+                    emit(tok, len(tok.string), _KEYWORD)
                 i += 1
                 continue
 
@@ -461,11 +564,13 @@ def _publish(uri: str) -> None:
 
 @server.feature(types.TEXT_DOCUMENT_DID_OPEN)
 def did_open(params: types.DidOpenTextDocumentParams) -> None:
+    _sync_encoding()
     _publish(params.text_document.uri)
 
 
 @server.feature(types.TEXT_DOCUMENT_DID_CHANGE)
 def did_change(params: types.DidChangeTextDocumentParams) -> None:
+    _sync_encoding()
     _publish(params.text_document.uri)
 
 
@@ -478,18 +583,21 @@ def did_close(params: types.DidCloseTextDocumentParams) -> None:
 
 @server.feature(types.TEXT_DOCUMENT_DOCUMENT_SYMBOL)
 def document_symbol(params: types.DocumentSymbolParams) -> list[types.DocumentSymbol]:
+    _sync_encoding()
     source = _get_source(params.text_document.uri)
     return compute_document_symbols(source) if source is not None else []
 
 
 @server.feature(types.TEXT_DOCUMENT_FOLDING_RANGE)
 def folding_range(params: types.FoldingRangeParams) -> list[types.FoldingRange]:
+    _sync_encoding()
     source = _get_source(params.text_document.uri)
     return compute_folding_ranges(source) if source is not None else []
 
 
 @server.feature(types.TEXT_DOCUMENT_SEMANTIC_TOKENS_FULL, _SEMANTIC_LEGEND)
 def semantic_tokens_full(params: types.SemanticTokensParams) -> types.SemanticTokens:
+    _sync_encoding()
     source = _get_source(params.text_document.uri)
     if source is None:
         return types.SemanticTokens(data=[])
@@ -556,6 +664,31 @@ def _selftest() -> int:
         (f.start_line, f.end_line) for f in compute_folding_ranges(_STRUCTURE_DEMO)
     ])
     print("tokens: ", _decode_tokens(compute_semantic_tokens(_STRUCTURE_DEMO).data))
+
+    print("\n--- edge cases ---")
+    print("nul byte:", [
+        (d.message, d.range.start.line, d.range.start.character)
+        for d in compute_diagnostics("x = 1\u0000\n")
+    ])
+    deep = "x = " + "+".join(["1"] * 2000) + "\n"
+    print("deep expr symbols:", [s.name for s in compute_document_symbols(deep)])
+    print("form feed:", [
+        (d.message, d.range.start.line, d.range.start.character, d.range.end.character)
+        for d in compute_diagnostics("x = 1\x0cy = (1 +\n")
+    ])
+    print("magic in block:", compute_diagnostics("if True:\n    %time x = 1\n"))
+    print("cell magic:", compute_diagnostics("%%bash\necho hi\n"))
+    print("magic body kept:", [
+        (d.message, d.range.start.line)
+        for d in compute_diagnostics("%%time\nx = (1 +\n")
+    ])
+    print("match tuple:", _decode_tokens(compute_semantic_tokens("match, x = 1, 2\n").data))
+    print("non-ascii tok:", _decode_tokens(compute_semantic_tokens("𝕏 = def(x): return x\n").data))
+    print("nfkc sel:", [
+        (s.name, (s.range.start.character, s.range.end.character),
+         (s.selection_range.start.character, s.selection_range.end.character))
+        for s in compute_document_symbols("ﬁle = file\n")
+    ])
     return 0
 
 
