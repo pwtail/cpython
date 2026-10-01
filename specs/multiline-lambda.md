@@ -63,7 +63,10 @@ statement-позициях (R2) всегда выигрывает блочная
 Семантика — обычного `def` с тем же телом: замыкания по стандартным правилам,
 `yield`/`yield from` внутри делают её генератором, `async def(...)`:
 не поддерживается в v1. Параметры — те же, что у `lambda`/обычного `def`
-(positional, keyword, defaults, `*args`, `**kwargs`, annotations).
+(positional, keyword, defaults, `*args`, `**kwargs`, annotations). Блочная
+форма (R2) поддерживает и возвратную аннотацию `def(…) -> T: …` — она
+попадает в `__annotations__['return']` (блок десахарится в `FunctionDef`,
+у которого есть поле `returns`).
 
 `__name__` функции: в позиции присваивания — имя цели (`fib.__name__ == 'fib'`),
 в остальных позициях — синтетическое имя `<lambda>` (не подтверждено).
@@ -89,21 +92,26 @@ statement-позициях (R2) всегда выигрывает блочная
   выражение-инструкция; правило также несёт match-def-альтернативы R9 — см.
   `funny-python-match-def`), подключённое как альтернатива в `statement`
   (между `compound_stmt` и `simple_stmts`) и в `statement_newline`. Параметры — существующее правило
-  `params`. Почему не альтернативы внутри `assignment`/`return_stmt`:
+  `params`; возвратная аннотация — опциональный `['->' expression]` между
+  `')'` и `':'` в блочных альтернативах (как в `function_def` и
+  `funnypy_match_def`). Почему не альтернативы внутри `assignment`/`return_stmt`:
   формы несут блок (NEWLINE…DEDENT), а `simple_stmts` требует финальный
   NEWLINE, который блок уже поглотил — statement-уровень ведёт себя как
   compound_stmt. Разбора с lookahead `function_def` (`&('def' | '@' |
   'async')`) конфликта не возникло: `function_def_raw` требует `NAME` после
   `def`, а `invalid_def_raw` — тоже (оба откатываются на `def(`).
-- **Тесты:** `Lib/test/test_funnypy_lambda.py` (15 тестов) — генератор,
+- **Тесты:** `Lib/test/test_funnypy_lambda.py` (18 тестов) — генератор,
   `__name__` цели, return-позиция, замыкание, выражение-инструкция,
   однострочное тело, присваивание с def на следующей строке, параметры с
-  аннотациями/defaults, тело в классе, запрещённые позиции (аргумент вызова,
+  аннотациями/defaults, возвратная аннотация (в т.ч. return-позиция и
+  однострочное тело), тело в классе, запрещённые позиции (аргумент вызова,
   коллекция, `a = b =`, атрибут, `async`).
 - **Expression-форма (R6):** правило `def_expr` в `Grammar/python.gram`
   (`'def' '(' params ')' ':' expression`), десахар в `_PyAST_Lambda`;
   параметры — `params` (а не `lambda_params`: те ожидают `:`/`,` после
   параметра и не примут `)`). Новых AST-узлов и правок `codegen.c` не
   требует. `__name__` — `<lambda>`; возвратная аннотация (`def(x) -> int:`)
-  не поддержана — в узле `Lambda` нет поля `returns`. Тесты — класс
-  `DefExprTests` в `Lib/test/test_funnypy.py`.
+  не поддержана — в узле `Lambda` нет поля `returns` (в statement-позиции
+  `f = def(x) -> int: …` выигрывает блочная форма и `->` работает — см.
+  Semantics; отказ только для expression-позиций, напр. аргумента вызова).
+  Тесты — класс `DefExprTests` в `Lib/test/test_funnypy.py`.

@@ -170,6 +170,14 @@ class DefExprTests(unittest.TestCase):
         f = def(x: int): x + 1
         self.assertEqual(f(1), 2)
 
+    def test_return_annotation_not_supported_in_expr_position(self):
+        # The expression form desugars to a Lambda node, which has no
+        # `returns` field; a `->` return annotation is a SyntaxError here.
+        # (The block form `f = def(x) -> int: ...` DOES support it -- see
+        # test_funnypy_lambda.MultilineLambdaTests.test_return_annotation.)
+        with self.assertRaises(SyntaxError):
+            compile("list(map(def(x) -> int: x + 1, []))", "<test>", "exec")
+
     def test_def_statement_still_works(self):
         def named(x):
             return x
