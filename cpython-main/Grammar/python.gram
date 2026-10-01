@@ -146,21 +146,21 @@ simple_stmts[asdl_stmt_seq*]:
 # Funny Python: anonymous functions with a full suite, allowed in statement
 # positions only (assignment RHS, return value, expression statement).
 funnypy_lambda_stmt[asdl_stmt_seq*]:
-    | n=NAME '=' 'def' '(' a=[params] ')' ':' body=block {
+    | n=NAME '=' 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' body=block {
         (asdl_stmt_seq*)_PyPegen_singleton_seq(p, CHECK(stmt_ty, _PyAST_FunctionDef(
             n->v.Name.id,
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
-            body, NULL, NULL, NULL, NULL, EXTRA))) }
-    | n=NAME '=' NEWLINE INDENT 'def' '(' a=[params] ')' ':' body=block DEDENT {
+            body, NULL, r, NULL, NULL, EXTRA))) }
+    | n=NAME '=' NEWLINE INDENT 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' body=block DEDENT {
         (asdl_stmt_seq*)_PyPegen_singleton_seq(p, CHECK(stmt_ty, _PyAST_FunctionDef(
             n->v.Name.id,
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
-            body, NULL, NULL, NULL, NULL, EXTRA))) }
-    | 'return' 'def' '(' a=[params] ')' ':' body=block {
+            body, NULL, r, NULL, NULL, EXTRA))) }
+    | 'return' 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' body=block {
         _PyPegen_funnypy_lambda_return(p, CHECK(stmt_ty, _PyAST_FunctionDef(
             _PyPegen_new_identifier(p, "<lambda>"),
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
-            body, NULL, NULL, NULL, NULL, EXTRA))) }
+            body, NULL, r, NULL, NULL, EXTRA))) }
     | n=NAME '=' "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyPegen_funnypy_match_def_stmt(p, n->v.Name.id, (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
     | n=NAME '=' NEWLINE INDENT "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT DEDENT {
@@ -181,11 +181,11 @@ funnypy_lambda_stmt[asdl_stmt_seq*]:
 # "<lambda>" (used by lambdas, by the anonymous `match def`, and by the `..`
 # placeholder def-filler).
 funnypy_lambda_def[stmt_ty]:
-    | 'def' '(' a=[params] ')' ':' body=block {
+    | 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' body=block {
         CHECK(stmt_ty, _PyAST_FunctionDef(
             _PyPegen_new_identifier(p, "<lambda>"),
             (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)),
-            body, NULL, NULL, NULL, NULL, EXTRA)) }
+            body, NULL, r, NULL, NULL, EXTRA)) }
     | "match" 'def' '(' a=[params] ')' r=['->' z=expression { z }] ':' NEWLINE INDENT cases[asdl_match_case_seq*]=case_block+ DEDENT {
         _PyPegen_funnypy_match_def(p, _PyPegen_new_identifier(p, "<lambda>"), (a) ? a : CHECK(arguments_ty, _PyPegen_empty_arguments(p)), r, cases, EXTRA) }
 

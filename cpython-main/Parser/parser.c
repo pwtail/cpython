@@ -1940,9 +1940,9 @@ simple_stmts_rule(Parser *p)
 }
 
 // funnypy_lambda_stmt:
-//     | NAME '=' 'def' '(' params? ')' ':' block
-//     | NAME '=' NEWLINE INDENT 'def' '(' params? ')' ':' block DEDENT
-//     | 'return' 'def' '(' params? ')' ':' block
+//     | NAME '=' 'def' '(' params? ')' ['->' expression] ':' block
+//     | NAME '=' NEWLINE INDENT 'def' '(' params? ')' ['->' expression] ':' block DEDENT
+//     | 'return' 'def' '(' params? ')' ['->' expression] ':' block
 //     | NAME '=' "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT
 //     | NAME '=' NEWLINE INDENT "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT DEDENT
 //     | 'return' "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT
@@ -1970,12 +1970,12 @@ funnypy_lambda_stmt_rule(Parser *p)
     UNUSED(_start_lineno); // Only used by EXTRA macro
     int _start_col_offset = p->tokens[_mark]->col_offset;
     UNUSED(_start_col_offset); // Only used by EXTRA macro
-    { // NAME '=' 'def' '(' params? ')' ':' block
+    { // NAME '=' 'def' '(' params? ')' ['->' expression] ':' block
         if (p->error_indicator) {
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "NAME '=' 'def' '(' params? ')' ':' block"));
+        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "NAME '=' 'def' '(' params? ')' ['->' expression] ':' block"));
         Token * _keyword;
         Token * _literal;
         Token * _literal_1;
@@ -1984,6 +1984,7 @@ funnypy_lambda_stmt_rule(Parser *p)
         void *a;
         asdl_stmt_seq* body;
         expr_ty n;
+        void *r;
         if (
             (n = _PyPegen_name_token(p))  // NAME
             &&
@@ -1997,12 +1998,14 @@ funnypy_lambda_stmt_rule(Parser *p)
             &&
             (_literal_2 = _PyPegen_expect_token(p, 8))  // token=')'
             &&
+            (r = _tmp_5_rule(p), !p->error_indicator)  // ['->' expression]
+            &&
             (_literal_3 = _PyPegen_expect_token(p, 11))  // token=':'
             &&
             (body = block_rule(p))  // block
         )
         {
-            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "NAME '=' 'def' '(' params? ')' ':' block"));
+            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "NAME '=' 'def' '(' params? ')' ['->' expression] ':' block"));
             Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
             if (_token == NULL) {
                 p->level--;
@@ -2012,7 +2015,7 @@ funnypy_lambda_stmt_rule(Parser *p)
             UNUSED(_end_lineno); // Only used by EXTRA macro
             int _end_col_offset = _token->end_col_offset;
             UNUSED(_end_col_offset); // Only used by EXTRA macro
-            _res = ( asdl_stmt_seq* ) _PyPegen_singleton_seq ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( n -> v . Name . id , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , NULL , NULL , NULL , EXTRA ) ) );
+            _res = ( asdl_stmt_seq* ) _PyPegen_singleton_seq ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( n -> v . Name . id , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , r , NULL , NULL , EXTRA ) ) );
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
                 p->level--;
@@ -2022,14 +2025,14 @@ funnypy_lambda_stmt_rule(Parser *p)
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s funnypy_lambda_stmt[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "NAME '=' 'def' '(' params? ')' ':' block"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "NAME '=' 'def' '(' params? ')' ['->' expression] ':' block"));
     }
-    { // NAME '=' NEWLINE INDENT 'def' '(' params? ')' ':' block DEDENT
+    { // NAME '=' NEWLINE INDENT 'def' '(' params? ')' ['->' expression] ':' block DEDENT
         if (p->error_indicator) {
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ':' block DEDENT"));
+        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ['->' expression] ':' block DEDENT"));
         Token * _keyword;
         Token * _literal;
         Token * _literal_1;
@@ -2041,6 +2044,7 @@ funnypy_lambda_stmt_rule(Parser *p)
         Token * indent_var;
         expr_ty n;
         Token * newline_var;
+        void *r;
         if (
             (n = _PyPegen_name_token(p))  // NAME
             &&
@@ -2058,6 +2062,8 @@ funnypy_lambda_stmt_rule(Parser *p)
             &&
             (_literal_2 = _PyPegen_expect_token(p, 8))  // token=')'
             &&
+            (r = _tmp_5_rule(p), !p->error_indicator)  // ['->' expression]
+            &&
             (_literal_3 = _PyPegen_expect_token(p, 11))  // token=':'
             &&
             (body = block_rule(p))  // block
@@ -2065,7 +2071,7 @@ funnypy_lambda_stmt_rule(Parser *p)
             (dedent_var = _PyPegen_expect_token(p, DEDENT))  // token='DEDENT'
         )
         {
-            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ':' block DEDENT"));
+            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ['->' expression] ':' block DEDENT"));
             Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
             if (_token == NULL) {
                 p->level--;
@@ -2075,7 +2081,7 @@ funnypy_lambda_stmt_rule(Parser *p)
             UNUSED(_end_lineno); // Only used by EXTRA macro
             int _end_col_offset = _token->end_col_offset;
             UNUSED(_end_col_offset); // Only used by EXTRA macro
-            _res = ( asdl_stmt_seq* ) _PyPegen_singleton_seq ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( n -> v . Name . id , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , NULL , NULL , NULL , EXTRA ) ) );
+            _res = ( asdl_stmt_seq* ) _PyPegen_singleton_seq ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( n -> v . Name . id , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , r , NULL , NULL , EXTRA ) ) );
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
                 p->level--;
@@ -2085,14 +2091,14 @@ funnypy_lambda_stmt_rule(Parser *p)
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s funnypy_lambda_stmt[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ':' block DEDENT"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "NAME '=' NEWLINE INDENT 'def' '(' params? ')' ['->' expression] ':' block DEDENT"));
     }
-    { // 'return' 'def' '(' params? ')' ':' block
+    { // 'return' 'def' '(' params? ')' ['->' expression] ':' block
         if (p->error_indicator) {
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'return' 'def' '(' params? ')' ':' block"));
+        D(fprintf(stderr, "%*c> funnypy_lambda_stmt[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'return' 'def' '(' params? ')' ['->' expression] ':' block"));
         Token * _keyword;
         Token * _keyword_1;
         Token * _literal;
@@ -2100,6 +2106,7 @@ funnypy_lambda_stmt_rule(Parser *p)
         Token * _literal_2;
         void *a;
         asdl_stmt_seq* body;
+        void *r;
         if (
             (_keyword = _PyPegen_expect_token(p, 535))  // token='return'
             &&
@@ -2111,12 +2118,14 @@ funnypy_lambda_stmt_rule(Parser *p)
             &&
             (_literal_1 = _PyPegen_expect_token(p, 8))  // token=')'
             &&
+            (r = _tmp_5_rule(p), !p->error_indicator)  // ['->' expression]
+            &&
             (_literal_2 = _PyPegen_expect_token(p, 11))  // token=':'
             &&
             (body = block_rule(p))  // block
         )
         {
-            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'return' 'def' '(' params? ')' ':' block"));
+            D(fprintf(stderr, "%*c+ funnypy_lambda_stmt[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'return' 'def' '(' params? ')' ['->' expression] ':' block"));
             Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
             if (_token == NULL) {
                 p->level--;
@@ -2126,7 +2135,7 @@ funnypy_lambda_stmt_rule(Parser *p)
             UNUSED(_end_lineno); // Only used by EXTRA macro
             int _end_col_offset = _token->end_col_offset;
             UNUSED(_end_col_offset); // Only used by EXTRA macro
-            _res = _PyPegen_funnypy_lambda_return ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( _PyPegen_new_identifier ( p , "<lambda>" ) , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , NULL , NULL , NULL , EXTRA ) ) );
+            _res = _PyPegen_funnypy_lambda_return ( p , CHECK ( stmt_ty , _PyAST_FunctionDef ( _PyPegen_new_identifier ( p , "<lambda>" ) , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , r , NULL , NULL , EXTRA ) ) );
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
                 p->level--;
@@ -2136,7 +2145,7 @@ funnypy_lambda_stmt_rule(Parser *p)
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s funnypy_lambda_stmt[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'return' 'def' '(' params? ')' ':' block"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'return' 'def' '(' params? ')' ['->' expression] ':' block"));
     }
     { // NAME '=' "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT
         if (p->error_indicator) {
@@ -2439,7 +2448,7 @@ funnypy_lambda_stmt_rule(Parser *p)
 }
 
 // funnypy_lambda_def:
-//     | 'def' '(' params? ')' ':' block
+//     | 'def' '(' params? ')' ['->' expression] ':' block
 //     | "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT
 static stmt_ty
 funnypy_lambda_def_rule(Parser *p)
@@ -2462,18 +2471,19 @@ funnypy_lambda_def_rule(Parser *p)
     UNUSED(_start_lineno); // Only used by EXTRA macro
     int _start_col_offset = p->tokens[_mark]->col_offset;
     UNUSED(_start_col_offset); // Only used by EXTRA macro
-    { // 'def' '(' params? ')' ':' block
+    { // 'def' '(' params? ')' ['->' expression] ':' block
         if (p->error_indicator) {
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> funnypy_lambda_def[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'def' '(' params? ')' ':' block"));
+        D(fprintf(stderr, "%*c> funnypy_lambda_def[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "'def' '(' params? ')' ['->' expression] ':' block"));
         Token * _keyword;
         Token * _literal;
         Token * _literal_1;
         Token * _literal_2;
         void *a;
         asdl_stmt_seq* body;
+        void *r;
         if (
             (_keyword = _PyPegen_expect_token(p, 740))  // token='def'
             &&
@@ -2483,12 +2493,14 @@ funnypy_lambda_def_rule(Parser *p)
             &&
             (_literal_1 = _PyPegen_expect_token(p, 8))  // token=')'
             &&
+            (r = _tmp_5_rule(p), !p->error_indicator)  // ['->' expression]
+            &&
             (_literal_2 = _PyPegen_expect_token(p, 11))  // token=':'
             &&
             (body = block_rule(p))  // block
         )
         {
-            D(fprintf(stderr, "%*c+ funnypy_lambda_def[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'def' '(' params? ')' ':' block"));
+            D(fprintf(stderr, "%*c+ funnypy_lambda_def[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "'def' '(' params? ')' ['->' expression] ':' block"));
             Token *_token = _PyPegen_get_last_nonnwhitespace_token(p);
             if (_token == NULL) {
                 p->level--;
@@ -2498,7 +2510,7 @@ funnypy_lambda_def_rule(Parser *p)
             UNUSED(_end_lineno); // Only used by EXTRA macro
             int _end_col_offset = _token->end_col_offset;
             UNUSED(_end_col_offset); // Only used by EXTRA macro
-            _res = CHECK ( stmt_ty , _PyAST_FunctionDef ( _PyPegen_new_identifier ( p , "<lambda>" ) , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , NULL , NULL , NULL , EXTRA ) );
+            _res = CHECK ( stmt_ty , _PyAST_FunctionDef ( _PyPegen_new_identifier ( p , "<lambda>" ) , ( a ) ? a : CHECK ( arguments_ty , _PyPegen_empty_arguments ( p ) ) , body , NULL , r , NULL , NULL , EXTRA ) );
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
                 p->level--;
@@ -2508,7 +2520,7 @@ funnypy_lambda_def_rule(Parser *p)
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s funnypy_lambda_def[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'def' '(' params? ')' ':' block"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "'def' '(' params? ')' ['->' expression] ':' block"));
     }
     { // "match" 'def' '(' params? ')' ['->' expression] ':' NEWLINE INDENT case_block+ DEDENT
         if (p->error_indicator) {

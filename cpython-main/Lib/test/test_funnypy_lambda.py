@@ -60,6 +60,25 @@ class MultilineLambdaTests(unittest.TestCase):
             return (a, b, args, c, kw)
         self.assertEqual(f(1, 2, 3, c=4, d=5), (1, 2, (3,), 4, {"d": 5}))
 
+    def test_return_annotation(self):
+        f = def(x: int) -> int:
+            x + 1
+        self.assertEqual(f.__annotations__, {"x": int, "return": int})
+        self.assertEqual(f(1), 2)
+
+    def test_return_annotation_in_return_position(self):
+        def make():
+            return def(x) -> int:
+                x + 1
+        g = make()
+        self.assertEqual(g.__annotations__, {"return": int})
+        self.assertEqual(g(1), 2)
+
+    def test_return_annotation_single_line_body(self):
+        f = def(x) -> int: x + 1
+        self.assertEqual(f.__annotations__, {"return": int})
+        self.assertEqual(f(1), 2)
+
     def test_class_body(self):
         class C:
             method = def(self):

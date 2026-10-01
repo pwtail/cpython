@@ -141,7 +141,10 @@ make regen-pegen && make -j$(nproc)
 ```
 
 Работает: генератор (`yield` внутри), `fib.__name__ == 'fib'`, return-позиция,
-замыкание, однострочное тело, параметры с аннотациями/defaults, метод в классе.
+замыкание, однострочное тело, параметры с аннотациями/defaults, метод в классе,
+возвратная аннотация `def(…) -> T: …` (попадает в `__annotations__['return']`;
+expression-форма R6 `def(x) -> int: …` остаётся SyntaxError — у `Lambda` нет
+поля `returns`).
 SyntaxError: лямбда аргументом/в коллекции, `a = b = def(...)`, `obj.attr =
 def(...)`, `async def(...)`. Тесты: `Lib/test/test_funnypy_lambda.py` (14).
 
