@@ -20,6 +20,9 @@ Features
 * ``textDocument/foldingRange``         — compound-statement blocks from AST.
 * ``textDocument/semanticTokens/full``  — funnypy-specific constructs
   (``def(``, ``..``, soft keyword ``match``).
+* ``textDocument/hover``               — signatures of names defined in the cell,
+  plus short help for funnypy-only constructs.
+* ``textDocument/completion``          — keywords, builtins and names bound in the cell.
 
 Note: jupyterlab-lsp currently renders only diagnostics and document symbols
 (it has no semantic-token or folding-range UI); the other two features are for
@@ -43,7 +46,9 @@ Self-test (no LSP client needed)::
 from __future__ import annotations
 
 import ast
+import builtins
 import io
+import keyword
 import logging
 import re
 import sys
@@ -53,7 +58,7 @@ from lsprotocol import types
 from pygls.lsp.server import LanguageServer
 
 SERVER_NAME = "funnypy-language-server"
-SERVER_VERSION = "0.3.0"
+SERVER_VERSION = "0.4.0"
 
 log = logging.getLogger(SERVER_NAME)
 logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
@@ -468,30 +473,64 @@ def _pattern_assign_keyword(line: list[tokenize.TokenInfo]) -> bool:
     return False
 
 
-def compute_semantic_tokens(source: str) -> types.SemanticTokens:
-    """Highlight funnypy-specific constructs.
+_CONSTRUCT_LAMBDA = "lambda"
+_CONSTRUCT_PIPE = "pipe"
+_CONSTRUCT_MATCH = "match"
 
-    CodeMirror's Python mode already knows hard keywords; what it cannot know
-    is the funnypy dialect.  Emitted here:
+# Short help shown when hovering over a funnypy-only construct.
+_CONSTRUCT_DOCS = {
+    _CONSTRUCT_LAMBDA: (
+        "**Funny Python:** multiline lambda\n\n"
+        "`def(parameters):` followed by a full suite — an anonymous function with "
+        "the semantics of `def` (closures, `yield` turns it into a generator, the "
+        "usual parameter forms). Allowed as an assignment RHS, a `return` value or "
+        "an expression statement.\n\n"
+        "```python\n"
+        "fib = def(n):\n"
+        "    a, b = 0, 1\n"
+        "    for _ in range(n):\n"
+        "        yield a\n"
+        "        a, b = b, a + b\n"
+        "```"
+    ),
+    _CONSTRUCT_PIPE: (
+        "**Funny Python:** pipeline operator `..`\n\n"
+        "* `value` followed by `..f(args)` on the next line passes `value` as the "
+        "**last** positional argument: `[1, 2] ..map(f)` is `map(f, [1, 2])`.\n"
+        "* `..` inside a call is a placeholder filled by the next `def(...)` or "
+        "expression: `run(..) def(): ...`.\n"
+        "* `x ..match:` is `match x:`.\n\n"
+        "```python\n"
+        "[1, 2, 3]\n"
+        "..map(square)\n"
+        "..filter(is_even)\n"
+        "```"
+    ),
+    _CONSTRUCT_MATCH: (
+        "**Funny Python:** pattern destructuring\n\n"
+        "`match <pattern> = <value>` binds the pattern, or raises `MatchError` when "
+        "it does not match. Any pattern accepted by `match..case` works (mapping, "
+        "sequence, class, or, as, capture, literal, wildcard).\n\n"
+        "```python\n"
+        "match {'x': x} = point\n"
+        "```"
+    ),
+}
 
-    * ``def`` immediately followed by ``(``  -> keyword
-    * ``..`` (two adjacent dots)             -> operator
-    * soft-keyword ``match`` in ``match p = v`` / ``..match:`` -> keyword
+
+def find_funnypy_constructs(source: str) -> list[tuple[int, int, int, str]]:
+    """Locate funnypy-only constructs as ``(line0, start_col, end_col, kind)``.
+
+    Columns are 0-based codepoints.  Single source of truth for semantic tokens
+    and for hover help.
     """
     masked = mask_ipython_magics(source)
-    masked_lines = _split_lines(masked)
     try:
         tokens = list(tokenize.generate_tokens(io.StringIO(masked).readline))
     except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
-        return types.SemanticTokens(data=[])
+        return []
 
-    raw: list[tuple[int, int, int, int]] = []  # (line0, char0, length, type)
-
-    def emit(tok, length, token_type):
-        line0 = tok.start[0] - 1
-        text = masked_lines[line0] if line0 < len(masked_lines) else ""
-        raw.append((line0, _encoded_col(text, tok.start[1]), length, token_type))
-
+    found: list[tuple[int, int, int, str]] = []
     for line in _logical_lines(tokens):
         i = 0
         while i < len(line):
@@ -503,13 +542,17 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
                 tok.type == tokenize.NAME and tok.string == "def"
                 and nxt is not None and nxt.type == tokenize.OP and nxt.string == "("
             ):
-                emit(tok, len(tok.string), _KEYWORD)
+                found.append(
+                    (tok.start[0] - 1, tok.start[1], tok.start[1] + 3, _CONSTRUCT_LAMBDA)
+                )
                 i += 1
                 continue
 
             # `..` — pipe stage / placeholder / pipe-match.
             if nxt is not None and _is_adjacent_dots(tok, nxt):
-                emit(tok, 2, _OPERATOR)
+                found.append(
+                    (tok.start[0] - 1, tok.start[1], tok.start[1] + 2, _CONSTRUCT_PIPE)
+                )
                 i += 2
                 continue
 
@@ -517,11 +560,32 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
             if tok.type == tokenize.NAME and tok.string == "match":
                 pipe_match = i >= 2 and _is_adjacent_dots(line[i - 2], line[i - 1])
                 if pipe_match or _pattern_assign_keyword(line):
-                    emit(tok, len(tok.string), _KEYWORD)
+                    found.append(
+                        (tok.start[0] - 1, tok.start[1], tok.start[1] + 5, _CONSTRUCT_MATCH)
+                    )
                 i += 1
                 continue
 
             i += 1
+    return found
+
+
+_CONSTRUCT_TOKEN_TYPE = {
+    _CONSTRUCT_LAMBDA: _KEYWORD,
+    _CONSTRUCT_MATCH: _KEYWORD,
+    _CONSTRUCT_PIPE: _OPERATOR,
+}
+
+
+def compute_semantic_tokens(source: str) -> types.SemanticTokens:
+    """Highlight funnypy-specific constructs (see :func:`find_funnypy_constructs`)."""
+    masked_lines = _split_lines(mask_ipython_magics(source))
+    raw: list[tuple[int, int, int, int]] = []  # (line0, char0, length, type)
+    for line0, start, end, kind in find_funnypy_constructs(source):
+        text = masked_lines[line0] if line0 < len(masked_lines) else ""
+        raw.append(
+            (line0, _encoded_col(text, start), end - start, _CONSTRUCT_TOKEN_TYPE[kind])
+        )
 
     if not raw:
         return types.SemanticTokens(data=[])
@@ -543,14 +607,229 @@ def compute_semantic_tokens(source: str) -> types.SemanticTokens:
 
 
 # ---------------------------------------------------------------------------
+# Hover
+# ---------------------------------------------------------------------------
+
+def _format_arg(arg: ast.arg) -> str:
+    text = arg.arg
+    if arg.annotation is not None:
+        text += ": " + ast.unparse(arg.annotation)
+    return text
+
+
+def _signature(node) -> str:
+    """Render ``def name(...) -> ret`` for a function definition."""
+    args = node.args
+    parts: list[str] = []
+    positional = [*args.posonlyargs, *args.args]
+    defaults = list(args.defaults)
+    first_default = len(positional) - len(defaults)
+    for index, arg in enumerate(positional):
+        text = _format_arg(arg)
+        if index >= first_default:
+            text += "=" + ast.unparse(defaults[index - first_default])
+        parts.append(text)
+    if args.posonlyargs:
+        parts.insert(len(args.posonlyargs), "/")
+    if args.vararg is not None:
+        parts.append("*" + _format_arg(args.vararg))
+    elif args.kwonlyargs:
+        parts.append("*")
+    for arg, default in zip(args.kwonlyargs, args.kw_defaults):
+        text = _format_arg(arg)
+        if default is not None:
+            text += "=" + ast.unparse(default)
+        parts.append(text)
+    if args.kwarg is not None:
+        parts.append("**" + _format_arg(args.kwarg))
+    prefix = "async def" if isinstance(node, ast.AsyncFunctionDef) else "def"
+    returns = f" -> {ast.unparse(node.returns)}" if node.returns is not None else ""
+    return f"{prefix} {node.name}({', '.join(parts)}){returns}"
+
+
+def _definition_hover(node) -> str | None:
+    if isinstance(node, ast.ClassDef):
+        bases = ", ".join(ast.unparse(base) for base in node.bases)
+        return f"class {node.name}({bases})" if bases else f"class {node.name}"
+    if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+        return _signature(node)
+    if isinstance(node, (ast.Assign, ast.AnnAssign)):
+        value = node.value
+        if value is None:
+            return None
+        targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+        text = f"{', '.join(ast.unparse(t) for t in targets)} = {ast.unparse(value)}"
+        return text if len(text) <= 100 else text[:97] + "..."
+    return None
+
+
+def _definitions(source: str) -> dict[str, ast.AST]:
+    """Map every name bound in the cell to its defining node (first wins)."""
+    tree = _parse(source)
+    if tree is None:
+        return {}
+    found: dict[str, ast.AST] = {}
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            if node.name.isidentifier():
+                found.setdefault(node.name, node)
+        elif isinstance(node, (ast.Assign, ast.AnnAssign)):
+            targets = node.targets if isinstance(node, ast.Assign) else [node.target]
+            for target in targets:
+                for inner in ast.walk(target):
+                    if isinstance(inner, ast.Name):
+                        found.setdefault(inner.id, node)
+    return found
+
+
+def _token_at(source: str, line0: int, cp_col: int):
+    """The token covering a 0-based codepoint position, or None."""
+    target = (line0 + 1, cp_col)
+    try:
+        tokens = tokenize.generate_tokens(
+            io.StringIO(mask_ipython_magics(source)).readline
+        )
+        for tok in tokens:
+            if tok.type in (tokenize.ENDMARKER, tokenize.ENCODING):
+                continue
+            if tok.start <= target <= tok.end:
+                return tok
+    except (tokenize.TokenError, IndentationError, SyntaxError, ValueError):
+        return None
+    return None
+
+
+def compute_hover(source: str, line0: int, cp_col: int) -> types.Hover | None:
+    """Help for a funnypy construct, or the signature of a bound name."""
+    for c_line, start, end, kind in find_funnypy_constructs(source):
+        if c_line == line0 and start <= cp_col < end:
+            return types.Hover(
+                contents=types.MarkupContent(
+                    kind=types.MarkupKind.Markdown, value=_CONSTRUCT_DOCS[kind]
+                )
+            )
+    tok = _token_at(source, line0, cp_col)
+    if tok is None or tok.type != tokenize.NAME:
+        return None
+    node = _definitions(source).get(tok.string)
+    if node is None:
+        return None
+    detail = _definition_hover(node)
+    if detail is None:
+        return None
+    return types.Hover(
+        contents=types.MarkupContent(
+            kind=types.MarkupKind.Markdown, value=f"```python\n{detail}\n```"
+        )
+    )
+
+
+# ---------------------------------------------------------------------------
+# Completion
+# ---------------------------------------------------------------------------
+
+def _add_target_names(target, add) -> None:
+    for node in ast.walk(target):
+        if isinstance(node, ast.Name):
+            add(node.id, types.CompletionItemKind.Variable)
+
+
+def _document_names(source: str) -> dict[str, tuple[types.CompletionItemKind, str | None]]:
+    """Names bound anywhere in the cell, with a detail string where useful."""
+    tree = _parse(source)
+    if tree is None:
+        return {}
+    names: dict[str, tuple[types.CompletionItemKind, str | None]] = {}
+
+    def add(name: str, kind, detail: str | None = None) -> None:
+        if name:
+            names.setdefault(name, (kind, detail))
+
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            add(node.name, types.CompletionItemKind.Function, _signature(node))
+        elif isinstance(node, ast.ClassDef):
+            add(node.name, types.CompletionItemKind.Class, f"class {node.name}")
+        elif isinstance(node, ast.arguments):
+            for arg in (*node.posonlyargs, *node.args, *node.kwonlyargs):
+                add(arg.arg, types.CompletionItemKind.Variable)
+            if node.vararg is not None:
+                add(node.vararg.arg, types.CompletionItemKind.Variable)
+            if node.kwarg is not None:
+                add(node.kwarg.arg, types.CompletionItemKind.Variable)
+        elif isinstance(node, ast.Assign):
+            for target in node.targets:
+                _add_target_names(target, add)
+        elif isinstance(node, (ast.AnnAssign, ast.AugAssign, ast.NamedExpr)):
+            _add_target_names(node.target, add)
+        elif isinstance(node, (ast.For, ast.AsyncFor, ast.comprehension)):
+            _add_target_names(node.target, add)
+        elif isinstance(node, ast.withitem):
+            if node.optional_vars is not None:
+                _add_target_names(node.optional_vars, add)
+        elif isinstance(node, ast.ExceptHandler):
+            if node.name:
+                add(node.name, types.CompletionItemKind.Variable)
+        elif isinstance(node, (ast.Global, ast.Nonlocal)):
+            for name in node.names:
+                add(name, types.CompletionItemKind.Variable)
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                add(alias.asname or alias.name.split(".")[0],
+                    types.CompletionItemKind.Module)
+        elif isinstance(node, ast.ImportFrom):
+            for alias in node.names:
+                if alias.name != "*":
+                    add(alias.asname or alias.name, types.CompletionItemKind.Variable)
+    return names
+
+
+def compute_completions(source: str, line0: int, cp_col: int):
+    """Keywords, builtins and names bound in the cell.
+
+    Attribute access (``obj.|``) is left to the kernel, which knows real types.
+    """
+    tok = _token_at(source, line0, cp_col)
+    if tok is not None and tok.type in (tokenize.STRING, tokenize.COMMENT):
+        return []
+    lines = _split_lines(source)
+    text = lines[line0] if line0 < len(lines) else ""
+    if cp_col > 0 and text[cp_col - 1:cp_col] == ".":
+        return []
+
+    items: dict[str, types.CompletionItem] = {}
+    for name, (kind, detail) in _document_names(source).items():
+        items[name] = types.CompletionItem(label=name, kind=kind, detail=detail)
+    for name in (*keyword.kwlist, *getattr(keyword, "softkwlist", ())):
+        items.setdefault(
+            name, types.CompletionItem(label=name, kind=types.CompletionItemKind.Keyword)
+        )
+    for name in dir(builtins):
+        if name.startswith("_"):
+            continue
+        kind = (
+            types.CompletionItemKind.Function
+            if callable(getattr(builtins, name, None))
+            else types.CompletionItemKind.Variable
+        )
+        items.setdefault(name, types.CompletionItem(label=name, kind=kind))
+    return sorted(items.values(), key=lambda item: item.label)
+
+
+# ---------------------------------------------------------------------------
 # LSP handlers
 # ---------------------------------------------------------------------------
 
-def _get_source(uri: str) -> str | None:
+def _get_doc(uri: str):
     try:
-        return server.workspace.get_text_document(uri).source
+        return server.workspace.get_text_document(uri)
     except Exception:  # noqa: BLE001 - document not in store (race on close)
         return None
+
+
+def _get_source(uri: str) -> str | None:
+    doc = _get_doc(uri)
+    return doc.source if doc is not None else None
 
 
 def _publish(uri: str) -> None:
@@ -604,6 +883,35 @@ def semantic_tokens_full(params: types.SemanticTokensParams) -> types.SemanticTo
     return compute_semantic_tokens(source)
 
 
+@server.feature(types.TEXT_DOCUMENT_HOVER)
+def hover(params: types.HoverParams) -> types.Hover | None:
+    _sync_encoding()
+    doc = _get_doc(params.text_document.uri)
+    if doc is None:
+        return None
+    try:
+        position = doc.position_from_client_units(params.position)
+    except Exception:  # noqa: BLE001
+        return None
+    return compute_hover(doc.source, position.line, position.character)
+
+
+@server.feature(
+    types.TEXT_DOCUMENT_COMPLETION,
+    types.CompletionOptions(trigger_characters=["."]),
+)
+def completion(params: types.CompletionParams) -> list[types.CompletionItem]:
+    _sync_encoding()
+    doc = _get_doc(params.text_document.uri)
+    if doc is None:
+        return []
+    try:
+        position = doc.position_from_client_units(params.position)
+    except Exception:  # noqa: BLE001
+        return []
+    return compute_completions(doc.source, position.line, position.character)
+
+
 # ---------------------------------------------------------------------------
 # Self-test
 # ---------------------------------------------------------------------------
@@ -624,6 +932,12 @@ _STRUCTURE_DEMO = (
     "..map(square)\n"
     "..filter(lambda v: v > 1)\n"
 )
+
+
+def _hover_text(hover) -> str | None:
+    if hover is None:
+        return None
+    return hover.contents.value
 
 
 def _decode_tokens(data: list[int]):
@@ -689,6 +1003,39 @@ def _selftest() -> int:
          (s.selection_range.start.character, s.selection_range.end.character))
         for s in compute_document_symbols("ﬁle = file\n")
     ])
+
+    print("\n--- hover / completion ---")
+    hover_src = (
+        "square = def(n: int):\n"
+        "    return n * n\n"
+        "\n"
+        "def area(w: int) -> int:\n"
+        "    return w * w\n"
+        "\n"
+        "class Point:\n"
+        "    pass\n"
+        "\n"
+        "result = square(3)\n"
+    )
+    print("hover square:", _hover_text(compute_hover(hover_src, 9, 10)))
+    print("hover result:", _hover_text(compute_hover(hover_src, 9, 2)))
+    print("hover Point: ", _hover_text(compute_hover(hover_src, 6, 8)))
+    print("hover area:  ", _hover_text(compute_hover(hover_src, 3, 5)))
+    print("hover def(  :", (_hover_text(compute_hover(hover_src, 0, 9)) or "").splitlines()[0])
+    print("hover ..    :", (
+        _hover_text(compute_hover("x\n..match:\n    case 1:\n        pass\n", 1, 1)) or ""
+    ).splitlines()[0])
+    print("hover blank :", compute_hover(hover_src, 2, 0))
+
+    names = {i.label: i.kind.name for i in compute_completions(hover_src, 9, 10)}
+    print("completions :", {
+        k: names.get(k) for k in ("square", "area", "Point", "result", "n", "w", "match")
+    })
+    print("completion detail:", next(
+        i.detail for i in compute_completions(hover_src, 9, 10) if i.label == "area"
+    ))
+    print("in string   :", compute_completions("s = 'print'", 0, 6))
+    print("after dot   :", compute_completions("obj.x", 0, 4))
     return 0
 
 
