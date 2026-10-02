@@ -5,7 +5,7 @@ Runs on the Funny Python interpreter (the CPython 3.16 fork), so the standard
 library already understands the funnypy syntax extensions:
 
   * multiline lambdas:            ``fib = def(n): ...``
-  * pattern destructuring:        ``match {'x': x} = d``
+  * pattern destructuring:        ``match d case {'x': x}``
   * pipe / placeholder / match:   ``[1,2] ..map(f)``, ``run(..) def(): ...``,
                                   ``x ..match: case 1: ...``
 
@@ -442,34 +442,30 @@ def _is_adjacent_dots(a: tokenize.TokenInfo, b: tokenize.TokenInfo) -> bool:
 
 
 def _pattern_assign_keyword(line: list[tokenize.TokenInfo]) -> bool:
-    """Does this logical line look like `match <pattern> = <expr>`?
+    """Does this logical line look like `match <value> case <pattern>`?
 
     Distinguishes funnypy's soft-keyword form from ``match = 1``,
     ``match.x = 1``, ``match: int = 1``, a plain ``match x:`` statement and
     ordinary tuple un/repacking such as ``match, x = 1, 2``.
     """
-    if len(line) < 2:
+    if len(line) < 3:
         return False
     if line[0].type != tokenize.NAME or line[0].string != "match":
         return False
     if line[1].type == tokenize.OP and line[1].string in ("=", ".", ":"):
         return False
     depth = 0
-    seen = 0
-    for tok in line[1:]:
+    for i, tok in enumerate(line[1:], start=1):
         if tok.type == tokenize.OP:
             if tok.string in "([{":
                 depth += 1
             elif tok.string in ")]}":
                 depth -= 1
-            elif tok.string in (",", ";") and depth == 0:
-                # A bare tuple target list is ordinary unpacking, not a pattern.
-                return False
-            elif tok.string == "=" and depth == 0:
-                return seen > 0
             elif tok.string == ":" and depth == 0:
                 return False
-        seen += 1
+        if tok.type == tokenize.NAME and tok.string == "case" and depth == 0:
+            # A value before `case` and a pattern after it.
+            return 1 < i < len(line) - 1
     return False
 
 
@@ -508,11 +504,11 @@ _CONSTRUCT_DOCS = {
     ),
     _CONSTRUCT_MATCH: (
         "**Funny Python:** pattern destructuring\n\n"
-        "`match <pattern> = <value>` binds the pattern, or raises `MatchError` when "
+        "`match <value> case <pattern>` binds the pattern, or raises `MatchError` when "
         "it does not match. Any pattern accepted by `match..case` works (mapping, "
         "sequence, class, or, as, capture, literal, wildcard).\n\n"
         "```python\n"
-        "match {'x': x} = point\n"
+        "match point case {'x': x}\n"
         "```"
     ),
 }
@@ -924,7 +920,7 @@ _STRUCTURE_DEMO = (
     "    def __init__(self, x):\n"
     "        self.x = x\n"
     "\n"
-    "match {'a': a} = data\n"
+    "match data case {'a': a}\n"
     "\n"
     "total = 0\n"
     "\n"
@@ -954,7 +950,7 @@ def _decode_tokens(data: list[int]):
 def _selftest() -> int:
     diag_cases = {
         "lambda ok": "fib = def(n):\n    return n\n",
-        "pattern ok": "match {'x': x} = d\n",
+        "pattern ok": "match d case {'x': x}\n",
         "pipe ok": "square = def(x): return x ** 2\n[1, 2, 3]\n..map(square)\n",
         "unclosed paren": "x = (1 +\n",
         "indent error": "def f():\nreturn 1\n",

@@ -309,10 +309,10 @@ assignment[stmt_ty]:
          _PyAST_AugAssign(a, b->kind, c, EXTRA) }
     | invalid_assignment
 
-# Funny Python: pattern destructuring `match PATTERN = value`; desugars in a
-# helper into `match value: case PATTERN: pass; case _: raise MatchError`.
+# Funny Python: pattern destructuring `match VALUE case PATTERN`; desugars in
+# a helper into `match VALUE: case PATTERN: pass; case _: raise MatchError`.
 match_assign[stmt_ty]:
-    | "match" pat=patterns '=' v=annotated_rhs {
+    | "match" v=subject_expr "case" pat=patterns {
         _PyPegen_funnypy_match_assign(p, pat, v) }
 
 # funnypy: an assignment whose right-hand side is a match expression. It needs

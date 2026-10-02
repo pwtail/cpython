@@ -649,7 +649,7 @@ class PipeSyntaxErrorTests(unittest.TestCase):
 
     def test_lambda_and_match_assign_unchanged(self):
         compile("fib = def(n): return n", "<t>", "exec")
-        compile("match {'x': x} = {'x': 1}", "<t>", "exec")
+        compile("match {'x': 1} case {'x': x}", "<t>", "exec")
         compile("match = 1", "<t>", "exec")
 
 

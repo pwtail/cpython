@@ -474,7 +474,7 @@ class MatchDefRegressionTests(unittest.TestCase):
         self.assertEqual(result, ["three"])
 
     def test_pattern_assign_still_works(self):
-        match [first, *rest] = [1, 2, 3]
+        match [1, 2, 3] case [first, *rest]
         self.assertEqual((first, rest), (1, [2, 3]))
 
     def test_match_expression_still_works(self):

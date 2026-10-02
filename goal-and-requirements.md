@@ -27,8 +27,8 @@ R5 (неявный return) и R8 (деструктивный match).
   присваивания, `return`, выражение-инструкция). Семантика — обычного `def`:
   замыкания, `yield` превращает её в генератор. Подробности —
   `funny-python-lambda`.
-- **R3. Паттерн-деструктуризация.** Инструкция `match pattern = value`, где
-  после `match` — любой паттерн, допустимый в `match..case` (mapping,
+- **R3. Паттерн-деструктуризация.** Инструкция `match value case pattern`, где
+  после `case` — любой паттерн, допустимый в `match..case` (mapping,
   sequence, class, or, as, capture, literal, wildcard). При несовпадении
   паттерна — исключение `MatchError`. Подробности — `funny-python-pattern-assign`.
 - **R4. Оператор `..`.** Пайплайн: `x` + строка `..f(args)` — значение

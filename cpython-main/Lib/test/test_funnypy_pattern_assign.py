@@ -1,4 +1,4 @@
-"""Tests for Funny Python pattern destructuring: ``match PATTERN = value``."""
+"""Tests for Funny Python pattern destructuring: ``match VALUE case PATTERN``."""
 
 import unittest
 
@@ -8,42 +8,45 @@ from test.support import check_syntax_error
 class PatternAssignTests(unittest.TestCase):
 
     def test_mapping_pattern(self):
-        match {'x': x} = {'x': 42, 'y': 0}
+        match {'x': 42, 'y': 0} case {'x': x}
         self.assertEqual(x, 42)
 
     def test_class_pattern(self):
         class Point:
             def __init__(self, x, y):
                 self.x, self.y = x, y
-        match Point(x=px, y=py) = Point(1, 2)
+        match Point(1, 2) case Point(x=px, y=py)
         self.assertEqual((px, py), (1, 2))
 
     def test_sequence_pattern(self):
-        match [first, *rest] = [1, 2, 3]
+        match [1, 2, 3] case [first, *rest]
         self.assertEqual((first, rest), (1, [2, 3]))
 
     def test_or_pattern(self):
-        match {'a': a} | {'b': a} = {'b': 9}
+        match {'b': 9} case {'a': a} | {'b': a}
         self.assertEqual(a, 9)
 
     def test_literal_pattern_mismatch(self):
         with self.assertRaises(MatchError):
-            match 1 = 2
+            match 2 case 1
 
     def test_literal_pattern_match(self):
-        match 1 = 1  # no error
+        match 1 case 1  # no error
 
     def test_wildcard_is_irrefutable(self):
-        match _ = 99  # must not raise "unreachable pattern"
+        match 99 case _  # must not raise "unreachable pattern"
 
-    def test_irrefutable_as_pattern(self):
-        # The `as` target may not sit directly before '=', so parenthesize.
-        match (_ as y) = 5
+    def test_as_pattern(self):
+        match 5 case _ as y
         self.assertEqual(y, 5)
 
-    def test_parenthesized_capture(self):
-        match (x) = 5
+    def test_bare_capture(self):
+        match 5 case x
         self.assertEqual(x, 5)
+
+    def test_tuple_subject(self):
+        match 1, 2 case p, q
+        self.assertEqual((p, q), (1, 2))
 
     def test_rhs_evaluated_once(self):
         calls = []
@@ -52,13 +55,13 @@ class PatternAssignTests(unittest.TestCase):
             calls.append(1)
             return {'x': 1}
 
-        match {'x': _} = side()
+        match side() case {'x': _}
         self.assertEqual(len(calls), 1)
 
     def test_mismatch_does_not_bind(self):
         def probe():
             try:
-                match {'x': x} = {}
+                match {} case {'x': x}
             except MatchError:
                 pass
             return locals()
@@ -68,7 +71,7 @@ class PatternAssignTests(unittest.TestCase):
         seen = []
         for value in ({'y': 1}, {'x': 2}):
             try:
-                match {'x': x} = value
+                match value case {'x': x}
             except MatchError:
                 seen.append(None)
             else:
@@ -77,7 +80,7 @@ class PatternAssignTests(unittest.TestCase):
 
     def test_body_continues_after_success(self):
         events = []
-        match {'x': _} = {'x': 1}
+        match {'x': 1} case {'x': _}
         events.append("after")
         self.assertEqual(events, ["after"])
 
@@ -107,7 +110,7 @@ class PatternAssignSupersetTests(unittest.TestCase):
     def test_pattern_semantics_differ_from_unpack(self):
         # A sequence pattern rejects str, plain unpacking accepts it.
         with self.assertRaises(MatchError):
-            match [a, b] = 'ab'
+            match 'ab' case [a, b]
 
     def test_compound_match_unchanged(self):
         def classify(v):
@@ -125,27 +128,27 @@ class PatternAssignSupersetTests(unittest.TestCase):
 
 class PatternAssignSyntaxErrorTests(unittest.TestCase):
 
-    def test_bare_capture_not_supported(self):
-        # pattern_capture_target rejects NAME before '='; use match (x) = v,
-        # or a plain assignment.
+    def test_old_equals_syntax_rejected(self):
+        # `match PATTERN = value` was replaced by `match VALUE case PATTERN`.
         check_syntax_error(self, "match x = 5")
+        check_syntax_error(self, "match {'x': x} = {'x': 1}")
 
-    def test_as_capture_needs_parentheses(self):
-        check_syntax_error(self, "match _ as y = 5")
+    def test_guard_not_supported(self):
+        check_syntax_error(self, "match d case {'x': x} if x")
 
     def test_error_elsewhere_reported_at_its_own_line(self):
         # Regression: the error-recovery pass must not blame the (valid)
         # pattern-assign statement for a syntax error further down.
-        src = "match {'x': x} = {'x': 1}\ndef broken(:\n    pass\n"
+        src = "match {'x': 1} case {'x': x}\ndef broken(:\n    pass\n"
         with self.assertRaises(SyntaxError) as cm:
             compile(src, "<t>", "exec")
         self.assertEqual(cm.exception.lineno, 2)
 
-    def test_guard_not_supported(self):
-        check_syntax_error(self, "match {'x': x} if x = d")
+    def test_missing_pattern(self):
+        check_syntax_error(self, "match {'x': 1} case")
 
     def test_missing_value(self):
-        check_syntax_error(self, "match {'x': x} =")
+        check_syntax_error(self, "match case {'x': x}")
 
 
 if __name__ == "__main__":

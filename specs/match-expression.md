@@ -49,7 +49,7 @@ s = match 2:
   `simple_stmts`. Причина: после закрывающих `DEDENT` токенизатор не выдаёт
   `NEWLINE`, который требует `simple_stmts`, поэтому без отдельного правила
   `s = match ...` падает на следующем statement. `match_expr_stmt` идёт
-  после `match_assign` (`match PATTERN = value`, R3) и не конфликтует с ним.
+  после `match_assign` (`match value case PATTERN`, R3) и не конфликтует с ним.
 - **Кодген:** `codegen_match_expr` (`Python/codegen.c`) по образцу
   `codegen_match_inner`: тот же обход кейсов через `codegen_pattern*`, но
   тело кейса компилируется с оставлением последнего выражения на стеке

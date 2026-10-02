@@ -33,7 +33,7 @@ y = match x:
 - `match`-statement: нет совпадения (включая провал guard'а у trailing
   `case _ if cond`) → `MatchError`.
 - `match`-выражение (R7): нет совпадения → `MatchError` (было `None`).
-- `match PATTERN = v` (R3): деструктивен изначально — без изменений.
+- `match v case PATTERN` (R3): деструктивен изначально — без изменений.
 - Trailing unguarded `case _` (или иррефутабельный `case x:`) — catch-all:
   диспатч полный, ошибки нет.
 - `..match:` (R4) — обычный compound `match`, покрыт как statement.

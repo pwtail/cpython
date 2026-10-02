@@ -4262,7 +4262,7 @@ assignment_rule(Parser *p)
     return _res;
 }
 
-// match_assign: "match" patterns '=' annotated_rhs
+// match_assign: "match" subject_expr "case" patterns
 static stmt_ty
 match_assign_rule(Parser *p)
 {
@@ -4275,27 +4275,27 @@ match_assign_rule(Parser *p)
     }
     stmt_ty _res = NULL;
     int _mark = p->mark;
-    { // "match" patterns '=' annotated_rhs
+    { // "match" subject_expr "case" patterns
         if (p->error_indicator) {
             p->level--;
             return NULL;
         }
-        D(fprintf(stderr, "%*c> match_assign[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"match\" patterns '=' annotated_rhs"));
+        D(fprintf(stderr, "%*c> match_assign[%d-%d]: %s\n", p->level, ' ', _mark, p->mark, "\"match\" subject_expr \"case\" patterns"));
         expr_ty _keyword;
-        Token * _literal;
+        expr_ty _keyword_1;
         pattern_ty pat;
         expr_ty v;
         if (
             (_keyword = _PyPegen_expect_soft_keyword(p, "match"))  // soft_keyword='"match"'
             &&
+            (v = subject_expr_rule(p))  // subject_expr
+            &&
+            (_keyword_1 = _PyPegen_expect_soft_keyword(p, "case"))  // soft_keyword='"case"'
+            &&
             (pat = patterns_rule(p))  // patterns
-            &&
-            (_literal = _PyPegen_expect_token(p, 22))  // token='='
-            &&
-            (v = annotated_rhs_rule(p))  // annotated_rhs
         )
         {
-            D(fprintf(stderr, "%*c+ match_assign[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"match\" patterns '=' annotated_rhs"));
+            D(fprintf(stderr, "%*c+ match_assign[%d-%d]: %s succeeded!\n", p->level, ' ', _mark, p->mark, "\"match\" subject_expr \"case\" patterns"));
             _res = _PyPegen_funnypy_match_assign ( p , pat , v );
             if ((_res == NULL || p->error_indicator) && PyErr_Occurred()) {
                 p->error_indicator = 1;
@@ -4306,7 +4306,7 @@ match_assign_rule(Parser *p)
         }
         p->mark = _mark;
         D(fprintf(stderr, "%*c%s match_assign[%d-%d]: %s failed!\n", p->level, ' ',
-                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "\"match\" patterns '=' annotated_rhs"));
+                  p->error_indicator ? "ERROR!" : "-", _mark, p->mark, "\"match\" subject_expr \"case\" patterns"));
     }
     _res = NULL;
   done:
